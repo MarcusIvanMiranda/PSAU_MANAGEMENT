@@ -175,12 +175,21 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
             box-shadow: var(--shadow-sm);
             backdrop-filter: blur(10px);
             background: rgba(255, 255, 255, 0.95);
+            position: relative;
+            z-index: 100;
         }
         
         .header-content {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: var(--space-4);
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
         }
         
         .page-title {
@@ -269,15 +278,14 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
         
         .profile-dropdown {
             position: absolute;
-            top: 100%;
+            top: calc(100% + 8px);
             right: 0;
-            margin-top: var(--space-1);
             background: var(--psau-white);
             border: 1px solid var(--psau-gray-200);
             border-radius: var(--radius);
             box-shadow: var(--shadow-lg);
             min-width: 150px;
-            z-index: 1000;
+            z-index: 9999;
             display: none;
             overflow: hidden;
         }
@@ -321,6 +329,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
             overflow: hidden;
             height: calc(100vh - 140px);
             position: relative;
+            z-index: 1;
         }
         
         .iframe-container::before {
@@ -351,11 +360,38 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
             padding: var(--space-2);
             border-radius: var(--radius);
             transition: all var(--transition);
+            order: -1;
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
         }
         
         .mobile-menu-toggle:hover {
             background: var(--psau-gray-100);
             color: var(--psau-primary);
+        }
+        
+        .mobile-menu-toggle:active {
+            transform: scale(0.95);
+        }
+        
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity var(--transition-slow);
+            touch-action: manipulation;
+        }
+        
+        .mobile-overlay.show {
+            display: block;
+            opacity: 1;
         }
         
         @media (max-width: 768px) {
@@ -390,7 +426,75 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
             }
             
             .page-title {
-                font-size: 1.5rem;
+                font-size: 1.25rem;
+            }
+            
+            .header-content {
+                flex-wrap: wrap;
+            }
+            
+            .header-left {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .header-actions {
+                gap: var(--space-2);
+            }
+            
+            .user-details {
+                display: none;
+            }
+            
+            .user-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 0.75rem;
+                min-height: 32px;
+                min-width: 32px;
+            }
+            
+            .user-profile {
+                min-height: 44px;
+                min-width: 44px;
+                touch-action: manipulation;
+            }
+            
+            .nav-link {
+                min-height: 44px;
+                touch-action: manipulation;
+            }
+            
+            .btn {
+                min-height: 44px;
+                min-width: 44px;
+                touch-action: manipulation;
+            }
+            
+            #currentTime {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .page-title {
+                font-size: 1.125rem;
+            }
+            
+            .content-area {
+                padding: var(--space-3);
+            }
+            
+            .iframe-container {
+                height: calc(100vh - 100px);
+            }
+            
+            .top-header {
+                padding: var(--space-3) var(--space-4);
+            }
+            
+            .mobile-menu-toggle {
+                font-size: 1.25rem;
             }
         }
         
@@ -445,6 +549,9 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 </head>
 <body>
     <div class="app-container">
+        <!-- Mobile Overlay -->
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -505,7 +612,10 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
         <main class="main-content">
             <header class="top-header">
                 <div class="header-content">
-                    <div>
+                    <div class="header-left">
+                        <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                            ☰
+                        </button>
                         <h1 class="page-title" id="pageTitle">Dashboard</h1>
                     </div>
                     <div class="header-actions">
@@ -635,7 +745,11 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
         
         // Mobile sidebar toggle
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('show');
         }
         
         // Clock functionality
@@ -663,19 +777,25 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
         document.addEventListener('click', function(event) {
             const sidebar = document.getElementById('sidebar');
             const toggle = document.querySelector('.mobile-menu-toggle');
+            const overlay = document.getElementById('mobileOverlay');
             
             if (window.innerWidth <= 768 && 
                 !sidebar.contains(event.target) && 
                 !toggle.contains(event.target) && 
                 sidebar.classList.contains('open')) {
                 sidebar.classList.remove('open');
+                overlay.classList.remove('show');
             }
         });
         
         // Handle iframe resize
         window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
             if (window.innerWidth > 768) {
-                document.getElementById('sidebar').classList.remove('open');
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
             }
         });
     </script>
