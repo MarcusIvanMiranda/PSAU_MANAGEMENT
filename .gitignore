@@ -1,0 +1,72 @@
+# PSAU Management System - Git Ignore File
+
+# Sensitive Configuration Files
+connect.php
+**/connect.php
+config.php
+**/config.php
+.env
+**/.env
+
+# Database
+*.sql
+database/
+**/database/
+
+# Temporary Files
+*.tmp
+*.temp
+*.log
+error_log
+**/error_log
+
+# System Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE Files
+.vscode/
+.idea/
+*.sublime-*
+
+# Upload Directories (if they contain user files)
+uploads/
+**/uploads/
+files/
+**/files/
+
+# Cache and Sessions
+cache/
+**/cache/
+sessions/
+**/sessions/
+
+# Backup Files
+*.bak
+*.backup
+**/*.bak
+**/*.backup
+
+# Node Modules (if using npm)
+node_modules/
+**/node_modules/
+
+# Composer (if using composer)
+vendor/
+**/vendor/
+
+# XAMPP specific (if copying from xampp)
+xampp/
+**/xampp/
+
+# Specific to PSAU Project
+PSAU.ico (keep if it's not sensitive)
+# Remove PSAU.ico line if you want to include the icon
+
+# Keep important files
+!index.php
+!README.md
+!.gitignore
