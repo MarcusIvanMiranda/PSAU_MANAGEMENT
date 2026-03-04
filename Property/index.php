@@ -5,7 +5,8 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     exit;
 }
 include "connect.php";
-error_reporting(0);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 //$servername = "";
 //$username = "";
 //$password = "";
@@ -75,6 +76,21 @@ if (!empty($filtertext)) {
 
 $sql = "SELECT * FROM ".$datatable.$search_condition." ORDER BY property_no DESC LIMIT $start_from, ".$results_per_page;
 $rs_result = $conn->query($sql);
+
+// Debug: Show SQL query and results
+if ($filtertext) {
+    echo "<div style='background: #f0f0f0; padding: 10px; margin: 10px; border: 1px solid #ccc;'>";
+    echo "<strong>Debug SQL:</strong> " . htmlspecialchars($sql) . "<br>";
+    echo "<strong>Results found:</strong> " . ($rs_result ? $rs_result->num_rows : "Query failed") . "<br>";
+    if ($rs_result && $rs_result->num_rows > 0) {
+        $first_row = $rs_result->fetch_assoc();
+        echo "<strong>First row data:</strong><br>";
+        echo "<pre>" . print_r($first_row, true) . "</pre>";
+        // Reset pointer
+        $rs_result->data_seek(0);
+    }
+    echo "</div>";
+}
 
 // Get total count for pagination
 $count_sql = "SELECT COUNT(*) AS total FROM ".$datatable.$search_condition;
@@ -192,16 +208,20 @@ $total_pages = ceil($row["total"] / $results_per_page);
                                 <td><strong><?php echo htmlspecialchars($row["property_tag"]); ?></strong></td>
                                 <td><?php echo htmlspecialchars($row["property_item"]); ?></td>
                                 <td><?php echo htmlspecialchars($row["property_description"]); ?></td>
-                                <td><?php echo htmlspecialchars($row["property_serial_number"]); ?></td>
-                                <td>₱<?php echo !empty($row["property_value"]) ? number_format($row["property_value"], 2) : '0.00'; ?></td>
-                                <td><?php echo htmlspecialchars($row["property_acquisition_date"]); ?></td>
-                                <td style="text-align: center;"><?php echo htmlspecialchars($row["property_accountable_person"]); ?></td>
-                                <td>
-                                    <?php 
-                                    echo htmlspecialchars($row["property_status"]);
-                                    ?>
-                                </td>
-                                <td><?php echo htmlspecialchars($row["property_remarks"]); ?></td>
+                                <td><?php echo htmlspecialchars($row["property_serial_number"] ?? ''); ?></td>
+                                <td>₱<?php 
+                                    $propertyValue = $row["property_value"] ?? '0';
+                                    $cleanedValue = str_replace([',', ' '], '', $propertyValue); // Remove commas and spaces
+                                    if (is_numeric($cleanedValue)) {
+                                        echo number_format((float)$cleanedValue, 2); 
+                                    } else {
+                                        echo htmlspecialchars($propertyValue); // Display as is if not a valid number
+                                    }
+                                ?></td>
+                                <td><?php echo htmlspecialchars($row["property_acquisition_date"] ?? ''); ?></td>
+                                <td style="text-align: center;"><?php echo htmlspecialchars($row["property_accountable_person"] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($row["property_status"] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($row["property_remarks"] ?? ''); ?></td>
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>

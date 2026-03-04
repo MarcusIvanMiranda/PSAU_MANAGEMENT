@@ -4,11 +4,11 @@ session_start();
 require_once 'connect.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+    $form_username = $_POST['username'];
+    $form_password = $_POST['password'];
     
     try {
-        $conn = new mysqli($servername, "root", "", $dbname);
+        $conn = new mysqli($servername, $username, $password, $dbname);
         
         if ($conn->connect_error) {
             header("location: login.php?error=1");
@@ -49,14 +49,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Authenticate user
         $sql = "SELECT id, username, password, full_name, role FROM users WHERE username = ?";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("s", $username);
+        $stmt->bind_param("s", $form_username);
         $stmt->execute();
         $result = $stmt->get_result();
         
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
             
-            if (password_verify($password, $user['password'])) {
+            if (password_verify($form_password, $user['password'])) {
                 $_SESSION['loggedin'] = true;
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['user_id'] = $user['id'];
