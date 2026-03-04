@@ -366,6 +366,16 @@ $filtertext = "";
         }
         
         /* Responsive */
+        @media (max-width: 1024px) {
+            .page-container {
+                padding: 1.25rem;
+            }
+            
+            .stats-row {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            }
+        }
+        
         @media (max-width: 768px) {
             .page-container {
                 padding: 1rem;
@@ -390,11 +400,135 @@ $filtertext = "";
             
             .documents-table th,
             .documents-table td {
-                padding: 0.5rem;
+                padding: 0.5rem 0.25rem;
             }
             
             .action-buttons {
                 flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .btn-action {
+                font-size: 0.625rem;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            /* Hide less important columns on mobile */
+            .documents-table th:nth-child(8),
+            .documents-table td:nth-child(8),
+            .documents-table th:nth-child(9),
+            .documents-table td:nth-child(9),
+            .documents-table th:nth-child(10),
+            .documents-table td:nth-child(10) {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .page-container {
+                padding: 0.75rem;
+            }
+            
+            .page-header {
+                padding: var(--space-4);
+            }
+            
+            .page-title {
+                font-size: 1.5rem;
+            }
+            
+            .search-section {
+                padding: 1rem;
+            }
+            
+            .table-header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .pagination {
+                padding: 0.75rem 1rem;
+                flex-wrap: wrap;
+            }
+            
+            .page-link {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            /* Mobile card view for table */
+            .mobile-table-card {
+                display: none;
+                background: var(--psau-white);
+                border: 1px solid var(--psau-gray-200);
+                border-radius: var(--radius-lg);
+                padding: 1rem;
+                margin-bottom: 1rem;
+                box-shadow: var(--shadow);
+            }
+            
+            .mobile-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.75rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 1px solid var(--psau-gray-200);
+            }
+            
+            .mobile-card-title {
+                font-weight: 600;
+                color: var(--psau-gray-900);
+                font-size: 0.875rem;
+            }
+            
+            .mobile-card-serial {
+                font-family: 'Courier New', monospace;
+                background: var(--psau-gray-100);
+                padding: 0.25rem 0.5rem;
+                border-radius: var(--radius);
+                font-size: 0.75rem;
+                font-weight: 500;
+            }
+            
+            .mobile-card-content {
+                display: grid;
+                gap: 0.5rem;
+                font-size: 0.75rem;
+            }
+            
+            .mobile-card-row {
+                display: flex;
+                justify-content: space-between;
+            }
+            
+            .mobile-card-label {
+                font-weight: 600;
+                color: var(--psau-gray-600);
+            }
+            
+            .mobile-card-value {
+                color: var(--psau-gray-900);
+                text-align: right;
+            }
+            
+            .mobile-card-actions {
+                margin-top: 0.75rem;
+                padding-top: 0.75rem;
+                border-top: 1px solid var(--psau-gray-200);
+                display: flex;
+                gap: 0.5rem;
+            }
+            
+            .mobile-table-card.show {
+                display: block;
+            }
+            
+            .documents-table {
+                display: none;
+            }
+            
+            .mobile-table-card.show ~ .documents-table {
+                display: none;
             }
         }
         
@@ -519,6 +653,55 @@ $filtertext = "";
                 ?>
                 
                 <?php if ($rs_result->num_rows > 0): ?>
+                    <!-- Mobile Card View -->
+                    <div class="mobile-table-cards">
+                        <?php while($row = $rs_result->fetch_assoc()): ?>
+                            <div class="mobile-table-card">
+                                <div class="mobile-card-header">
+                                    <div class="mobile-card-title"><?php echo htmlspecialchars($row["document_title"]); ?></div>
+                                    <div class="mobile-card-serial"><?php echo htmlspecialchars($row["serial_code"]); ?></div>
+                                </div>
+                                <div class="mobile-card-content">
+                                    <div class="mobile-card-row">
+                                        <span class="mobile-card-label">Type:</span>
+                                        <span class="mobile-card-value"><?php echo htmlspecialchars($row["document_type"]); ?></span>
+                                    </div>
+                                    <div class="mobile-card-row">
+                                        <span class="mobile-card-label">Status:</span>
+                                        <span class="mobile-card-value">
+                                            <span class="status-badge status-for-releasing">
+                                                <?php echo htmlspecialchars($row["document_status"]); ?>
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <div class="mobile-card-row">
+                                        <span class="mobile-card-label">Date Added:</span>
+                                        <span class="mobile-card-value"><?php echo date('M d, Y', strtotime($row["date_added"])); ?></span>
+                                    </div>
+                                    <div class="mobile-card-row">
+                                        <span class="mobile-card-label">Received From:</span>
+                                        <span class="mobile-card-value"><?php echo htmlspecialchars($row["received_from"]); ?></span>
+                                    </div>
+                                </div>
+                                <div class="mobile-card-actions">
+                                    <form action='printqrnow.php' method='POST' target='_blank' style="display: inline;">
+                                        <button type="submit" name='RefID' value="<?php echo $row["serial_code"]; ?>" 
+                                                class="btn-action primary" title="Print QR">
+                                            🖨️ Print
+                                        </button>
+                                    </form>
+                                    <form action='details.php' method='POST' style="display: inline;">
+                                        <button type="submit" name='RefID' value="<?php echo $row["serial_code"]; ?>" 
+                                                class="btn-action" title="Track Document">
+                                            📍 Track
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endwhile; ?>
+                    </div>
+                    
+                    <!-- Desktop Table View -->
                     <table class="documents-table">
                         <thead>
                             <tr>
@@ -535,7 +718,11 @@ $filtertext = "";
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while($row = $rs_result->fetch_assoc()): ?>
+                            <?php 
+                            // Reset result pointer for desktop view
+                            $rs_result->data_seek(0);
+                            while($row = $rs_result->fetch_assoc()): 
+                            ?>
                                 <tr>
                                     <td>
                                         <div class="action-buttons">
@@ -624,6 +811,26 @@ $filtertext = "";
         setTimeout(() => {
             window.location.reload();
         }, 30000);
+        
+        // Mobile view toggle
+        function toggleMobileView() {
+            const cards = document.querySelector('.mobile-table-cards');
+            const table = document.querySelector('.documents-table');
+            
+            if (window.innerWidth <= 480) {
+                if (cards) cards.style.display = 'block';
+                if (table) table.style.display = 'none';
+            } else {
+                if (cards) cards.style.display = 'none';
+                if (table) table.style.display = 'table';
+            }
+        }
+        
+        // Initialize mobile view
+        toggleMobileView();
+        
+        // Handle resize
+        window.addEventListener('resize', toggleMobileView);
     </script>
 </body>
 </html>

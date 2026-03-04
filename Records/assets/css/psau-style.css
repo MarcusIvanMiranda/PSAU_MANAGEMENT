@@ -504,6 +504,130 @@ a:hover {
   .table td {
     padding: var(--space-2) var(--space-3);
   }
+  
+  /* Touch-friendly button sizes */
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .btn-sm {
+    min-height: 38px;
+    min-width: 38px;
+  }
+  
+  /* Touch-friendly form controls */
+  .form-control {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Touch-friendly interactive elements */
+  a, button, .btn, input, select, textarea {
+    touch-action: manipulation;
+  }
+  
+  /* Improved spacing for touch */
+  .card {
+    margin-bottom: var(--space-4);
+  }
+  
+  .nav-link {
+    min-height: 44px;
+    padding: var(--space-3) var(--space-4);
+  }
+  
+  /* Swipe gestures support */
+  .swipe-hint {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .swipe-hint::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: swipeHint 2s infinite;
+  }
+  
+  @keyframes swipeHint {
+    0% { right: -100%; }
+    50% { right: 0%; }
+    100% { right: -100%; }
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 var(--space-2);
+  }
+  
+  .card-body {
+    padding: var(--space-3);
+  }
+  
+  /* Even smaller touch targets */
+  .btn-sm {
+    min-height: 36px;
+    min-width: 36px;
+    font-size: 0.75rem;
+  }
+  
+  /* Compact table for very small screens */
+  .table {
+    font-size: 0.625rem;
+  }
+  
+  .table th,
+  .table td {
+    padding: var(--space-1) var(--space-2);
+  }
+  
+  /* Horizontal scroll for wide tables */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better mobile navigation */
+  .mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--psau-white);
+    border-top: 1px solid var(--psau-gray-200);
+    display: flex;
+    justify-content: space-around;
+    padding: var(--space-2) 0;
+    z-index: 1000;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+  }
+  
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-2);
+    text-decoration: none;
+    color: var(--psau-gray-600);
+    font-size: 0.75rem;
+    transition: color var(--transition);
+    min-width: 60px;
+  }
+  
+  .mobile-nav-item.active {
+    color: var(--psau-primary);
+  }
+  
+  .mobile-nav-icon {
+    font-size: 1.25rem;
+    margin-bottom: var(--space-1);
+  }
 }
 
 /* Animation Classes */

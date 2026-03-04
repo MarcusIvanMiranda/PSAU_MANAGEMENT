@@ -474,6 +474,25 @@ $conn->close();
             transform: translateX(-4px);
         }
         
+        @media (max-width: 1024px) {
+            .dashboard-container {
+                padding: var(--space-4);
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: var(--space-4);
+            }
+            
+            .graphs-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .welcome-text h1 {
+                font-size: 2.25rem;
+            }
+        }
+        
         @media (max-width: 768px) {
             .dashboard-container {
                 padding: var(--space-4);
@@ -488,12 +507,33 @@ $conn->close();
                 font-size: 2rem;
             }
             
+            .welcome-text p {
+                font-size: 1.125rem;
+            }
+            
             .stats-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
+                gap: var(--space-3);
+            }
+            
+            .stat-card {
+                padding: var(--space-4);
+            }
+            
+            .stat-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 1.5rem;
+                margin-bottom: var(--space-3);
+            }
+            
+            .stat-value {
+                font-size: 2rem;
             }
             
             .graphs-section {
                 grid-template-columns: 1fr;
+                gap: var(--space-4);
             }
             
             .main-content {
@@ -502,6 +542,113 @@ $conn->close();
             
             .welcome-section {
                 padding: var(--space-6);
+            }
+            
+            .graph-card {
+                padding: var(--space-4);
+            }
+            
+            .chart-container {
+                height: 200px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .dashboard-container {
+                padding: var(--space-3);
+            }
+            
+            .welcome-section {
+                padding: var(--space-4);
+                margin-bottom: var(--space-4);
+            }
+            
+            .welcome-text h1 {
+                font-size: 1.75rem;
+            }
+            
+            .welcome-text p {
+                font-size: 1rem;
+            }
+            
+            .welcome-logo {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: var(--space-3);
+            }
+            
+            .stat-card {
+                padding: var(--space-3);
+            }
+            
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+                margin-bottom: var(--space-2);
+            }
+            
+            .stat-value {
+                font-size: 1.75rem;
+            }
+            
+            .stat-label {
+                font-size: 0.75rem;
+            }
+            
+            .graphs-section {
+                gap: var(--space-3);
+            }
+            
+            .graph-card {
+                padding: var(--space-3);
+            }
+            
+            .graph-header {
+                margin-bottom: var(--space-3);
+            }
+            
+            .graph-title {
+                font-size: 1rem;
+            }
+            
+            .chart-container {
+                height: 180px;
+            }
+            
+            .content-card {
+                margin-bottom: var(--space-3);
+            }
+            
+            .card-header {
+                padding: var(--space-3) var(--space-4);
+            }
+            
+            .card-body {
+                padding: var(--space-4);
+            }
+            
+            .action-btn {
+                padding: var(--space-3);
+            }
+            
+            .action-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+                margin-right: var(--space-3);
+            }
+            
+            .action-content h3 {
+                font-size: 1rem;
+            }
+            
+            .action-content p {
+                font-size: 0.75rem;
             }
         }
         
