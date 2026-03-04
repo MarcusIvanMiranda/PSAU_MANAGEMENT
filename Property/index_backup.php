@@ -75,70 +75,12 @@ $total_pages = ceil($row["total"] / $results_per_page);
 
         <?php if ($total_pages > 1): ?>
         <div class="pagination">
-            <?php
-            // Previous button
-            if ($page > 1):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $page - 1; ?>' class="nav-btn">
-                    &lt;
-                </a>
-            <?php endif; ?>
-            
-            <?php
-            // Calculate page range (show max 10 pages)
-            $max_pages = 10;
-            $start_page = max(1, $page - floor($max_pages / 2));
-            $end_page = min($total_pages, $start_page + $max_pages - 1);
-            
-            // Adjust start page if we're near the end
-            if ($end_page - $start_page < $max_pages - 1) {
-                $start_page = max(1, $end_page - $max_pages + 1);
-            }
-            
-            // Show first page if not in range
-            if ($start_page > 1):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=1' 
-                   class='<?php if (1==$page) echo "curPage"; ?>'>
-                    1
-                </a>
-                <?php if ($start_page > 2): ?>
-                    <span class="pagination-dots">...</span>
-                <?php endif; ?>
-            <?php endif; ?>
-            
-            <?php
-            // Show page range
-            for ($i=$start_page; $i<=$end_page; $i++):
-            ?>
+            <?php for ($i=1; $i<=$total_pages; $i++): ?>
                 <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $i; ?>' 
                    class='<?php if ($i==$page) echo "curPage"; ?>'>
                     <?php echo $i; ?>
                 </a>
             <?php endfor; ?>
-            
-            <?php
-            // Show last page if not in range
-            if ($end_page < $total_pages):
-                if ($end_page < $total_pages - 1):
-            ?>
-                    <span class="pagination-dots">...</span>
-                <?php endif; ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $total_pages; ?>' 
-                   class='<?php if ($total_pages==$page) echo "curPage"; ?>'>
-                    <?php echo $total_pages; ?>
-                </a>
-            <?php endif; ?>
-            
-            <?php
-            // Next button
-            if ($page < $total_pages):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $page + 1; ?>' class="nav-btn">
-                    &gt;
-                </a>
-            <?php endif; ?>
-            
         </div>
         <?php endif; ?>
 
@@ -219,70 +161,12 @@ $total_pages = ceil($row["total"] / $results_per_page);
         </div>
         <?php if ($total_pages > 1): ?>
         <div class="pagination">
-            <?php
-            // Previous button
-            if ($page > 1):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $page - 1; ?>' class="nav-btn">
-                    &lt;
-                </a>
-            <?php endif; ?>
-            
-            <?php
-            // Calculate page range (show max 10 pages)
-            $max_pages = 10;
-            $start_page = max(1, $page - floor($max_pages / 2));
-            $end_page = min($total_pages, $start_page + $max_pages - 1);
-            
-            // Adjust start page if we're near the end
-            if ($end_page - $start_page < $max_pages - 1) {
-                $start_page = max(1, $end_page - $max_pages + 1);
-            }
-            
-            // Show first page if not in range
-            if ($start_page > 1):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=1' 
-                   class='<?php if (1==$page) echo "curPage"; ?>'>
-                    1
-                </a>
-                <?php if ($start_page > 2): ?>
-                    <span class="pagination-dots">...</span>
-                <?php endif; ?>
-            <?php endif; ?>
-            
-            <?php
-            // Show page range
-            for ($i=$start_page; $i<=$end_page; $i++):
-            ?>
+            <?php for ($i=1; $i<=$total_pages; $i++): ?>
                 <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $i; ?>' 
                    class='<?php if ($i==$page) echo "curPage"; ?>'>
                     <?php echo $i; ?>
                 </a>
             <?php endfor; ?>
-            
-            <?php
-            // Show last page if not in range
-            if ($end_page < $total_pages):
-                if ($end_page < $total_pages - 1):
-            ?>
-                    <span class="pagination-dots">...</span>
-                <?php endif; ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $total_pages; ?>' 
-                   class='<?php if ($total_pages==$page) echo "curPage"; ?>'>
-                    <?php echo $total_pages; ?>
-                </a>
-            <?php endif; ?>
-            
-            <?php
-            // Next button
-            if ($page < $total_pages):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $page + 1; ?>' class="nav-btn">
-                    &gt;
-                </a>
-            <?php endif; ?>
-            ?>
         </div>
         <?php endif; ?>
     </div>
