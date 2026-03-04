@@ -62,9 +62,9 @@ $result = mysqli_query($conn, $query);
 ?>
 
         <?php if ($result && mysqli_num_rows($result) > 0): ?>
-            <?php while($data = mysqli_fetch_row($result)): ?>
+            <?php while($data = mysqli_fetch_assoc($result)): ?>
                 <?php
-                $selected_status = $data[16]; // property_status field
+                $selected_status = $data['property_status']; // property_status field
                 $is_released = stripos($selected_status, 'released') !== false;
                 $show_release_section = !$is_released;
                 ?>
@@ -92,53 +92,53 @@ $result = mysqli_query($conn, $query);
                                 <div class="property-details">
                             <div class="detail-item">
                                 <span class="detail-label">Property Number</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[1]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_no']); ?></span>
                             </div>
                             
                             <div class="detail-item">
                                 <span class="detail-label">Property Tag</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[2]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_tag']); ?></span>
                             </div>
                             
                             <div class="detail-item">
                                 <span class="detail-label">Item</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[3]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_item']); ?></span>
                             </div>
                             
                             <div class="detail-item">
                                 <span class="detail-label">Description/Model Number</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[4]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_description']); ?></span>
                             </div>
                             
                             <div class="detail-item">
                                 <span class="detail-label">Serial Number</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[5]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_serial_number']); ?></span>
                             </div>
                             
                             <div class="detail-item">
                                 <span class="detail-label">Value</span>
-                                <span class="detail-value">₱<?php echo !empty($data[6]) ? number_format($data[6], 2) : '0.00'; ?></span>
+                                <span class="detail-value">₱<?php echo !empty($data['property_value']) ? number_format($data['property_value'], 2) : '0.00'; ?></span>
                             </div>
                             
                             <div class="detail-item">
                                 <span class="detail-label">Acquisition Date</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[7]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_acquisition_date']); ?></span>
                             </div>
                             
                             <div class="detail-item">
                                 <span class="detail-label">Accountable Person</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[8]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_accountable_person']); ?></span>
                             </div>
                             
                             <div class="detail-item">
                                 <span class="detail-label">Actual Location</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[10]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_actual_location']); ?></span>
                             </div>
                             
-                            <?php if (!empty($data[11])): ?>
+                            <?php if (!empty($data['property_remarks'])): ?>
                             <div class="detail-item" style="grid-column: 1 / -1;">
                                 <span class="detail-label">Remarks</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[11]); ?></span>
+                                <span class="detail-value"><?php echo htmlspecialchars($data['property_remarks']); ?></span>
                             </div>
                             <?php endif; ?>
                                 </div>
@@ -149,7 +149,7 @@ $result = mysqli_query($conn, $query);
                                 <div class="property-details">
                                     <div class="detail-item">
                                         <span class="detail-label">Condition</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data[14]); ?></span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_condition']); ?></span>
                                     </div>
                                     
                                     <div class="detail-item">
@@ -170,12 +170,12 @@ $result = mysqli_query($conn, $query);
                                     
                                     <div class="detail-item">
                                         <span class="detail-label">Actual Location</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data[10]); ?></span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_actual_location']); ?></span>
                                     </div>
                                     
                                     <div class="detail-item">
                                         <span class="detail-label">Accountable Person</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data[8]); ?></span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_accountable_person']); ?></span>
                                     </div>
                                 </div>
                             </div>
@@ -185,22 +185,22 @@ $result = mysqli_query($conn, $query);
                                 <div class="property-details">
                                     <div class="detail-item">
                                         <span class="detail-label">Value</span>
-                                        <span class="detail-value value-highlight">₱<?php echo !empty($data[6]) ? number_format($data[6], 2) : '0.00'; ?></span>
+                                        <span class="detail-value value-highlight">₱<?php echo !empty($data['property_value']) ? number_format($data['property_value'], 2) : '0.00'; ?></span>
                                     </div>
                                     
                                     <div class="detail-item">
                                         <span class="detail-label">Fund</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data[17]); ?></span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_fund']); ?></span>
                                     </div>
                                     
                                     <div class="detail-item">
                                         <span class="detail-label">Year Purchased</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data[18]); ?></span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_year_purchased']); ?></span>
                                     </div>
                                     
                                     <div class="detail-item">
                                         <span class="detail-label">Acquisition Date</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data[7]); ?></span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_acquisition_date']); ?></span>
                                     </div>
                                 </div>
                             </div>
