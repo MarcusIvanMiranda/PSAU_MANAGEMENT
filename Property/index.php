@@ -1,11 +1,17 @@
-<?php include "connect.php";
+<?php
+session_start();
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+    header("location: login.php");
+    exit;
+}
+include "connect.php";
 error_reporting(0);
 //$servername = "";
 //$username = "";
 //$password = "";
 //$dbname = "";
 $datatable = "property_list"; // MySQL table name
-$results_per_page = 27; // number of results per page
+$results_per_page = 20; // number of results per page
  
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
@@ -32,6 +38,10 @@ $filtertext="";
             <div class="header-title">
                 <h1>PAMPANGA STATE AGRICULTURAL UNIVERSITY</h1>
                 <h2>Property Management System</h2>
+            </div>
+            <div class="header-user">
+                <span class="user-info">Welcome, <?php echo htmlspecialchars($_SESSION['full_name']); ?></span>
+                <a href="logout.php" class="btn btn-secondary">Logout</a>
             </div>
         </div>
     </header>
@@ -168,12 +178,12 @@ $total_pages = ceil($row["total"] / $results_per_page);
                                     <div class="action-buttons">
                                         <form action='printqrnow.php' method='POST' target='_blank' style="display: inline;">
                                             <button type='submit' name='RefID' value='<?php echo $row["property_tag"]; ?>' class="btn btn-success btn-sm">
-                                                📄 Print QR
+                                                 Print QR
                                             </button>
                                         </form>
                                         <form action='propertydocument.php' method='GET' style="display: inline;">
                                             <button type='submit' name='filtertext' value='<?php echo $row["property_tag"]; ?>' class="btn btn-primary btn-sm">
-                                                👁️ View
+                                                 View
                                             </button>
                                         </form>
                                     </div>
@@ -188,14 +198,7 @@ $total_pages = ceil($row["total"] / $results_per_page);
                                 <td style="text-align: center;"><?php echo htmlspecialchars($row["property_accountable_person"]); ?></td>
                                 <td>
                                     <?php 
-                                    $status = htmlspecialchars($row["property_status"]);
-                                    $status_class = "";
-                                    if (stripos($status, 'released') !== false) {
-                                        $status_class = "status-released";
-                                    } elseif (stripos($status, 'releasing') !== false) {
-                                        $status_class = "status-for-releasing";
-                                    }
-                                    echo "<span class='status-badge $status_class'>$status</span>";
+                                    echo htmlspecialchars($row["property_status"]);
                                     ?>
                                 </td>
                                 <td><?php echo htmlspecialchars($row["property_remarks"]); ?></td>
@@ -282,7 +285,7 @@ $total_pages = ceil($row["total"] / $results_per_page);
                     &gt;
                 </a>
             <?php endif; ?>
-            ?>
+       
         </div>
         <?php endif; ?>
     </div>

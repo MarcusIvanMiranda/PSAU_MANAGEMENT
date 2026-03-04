@@ -127,7 +127,13 @@
     </style>
 </head>
 <body onload="window.print()">
-    <?php include 'connect.php';
+    <?php
+    session_start();
+    if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+        header("location: login.php");
+        exit;
+    }
+    include 'connect.php';
 
     $conn = new mysqli($servername, $username, $password, $dbname);
     if ($conn->connect_error) {

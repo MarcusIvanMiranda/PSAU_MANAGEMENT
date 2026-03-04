@@ -1,4 +1,10 @@
-<?php include "connect.php";
+<?php
+session_start();
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+    header("location: login.php");
+    exit;
+}
+include "connect.php";
 error_reporting(0);
 $datatable = "property_list"; // MySQL table name
 $results_per_page = 27; // number of results per page
@@ -34,7 +40,12 @@ $filtertext="";
 
     <div class="container">
         <nav style="margin-bottom: 2rem;">
-            <a href="index.php" class="btn btn-primary">← Back to Property List</a>
+            <a href="index.php" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Back to Property List
+            </a>
         </nav>
 
 <?php
@@ -60,12 +71,25 @@ $result = mysqli_query($conn, $query);
                 
                 <div class="property-card">
                     <div class="property-header">
-                        <h3>Property Details</h3>
-                        <p>Property Tag: <strong><?php echo htmlspecialchars($data[2]); ?></strong></p>
+                        <div class="property-header-content">
+                            <div class="property-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                    <polyline points="9,22 9,12 15,12 15,22"/>
+                                </svg>
+                            </div>
+                            <div class="property-title">
+                                <h3>Property Details</h3>
+                                <p>Property Tag: <strong><?php echo htmlspecialchars($data[2]); ?></strong></p>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="property-body">
-                        <div class="property-details">
+                        <div class="property-details-grid">
+                            <div class="details-section">
+                                <h4 class="section-title">Basic Information</h4>
+                                <div class="property-details">
                             <div class="detail-item">
                                 <span class="detail-label">Property Number</span>
                                 <span class="detail-value"><?php echo htmlspecialchars($data[1]); ?></span>
@@ -111,60 +135,118 @@ $result = mysqli_query($conn, $query);
                                 <span class="detail-value"><?php echo htmlspecialchars($data[10]); ?></span>
                             </div>
                             
-                            <div class="detail-item">
-                                <span class="detail-label">Condition</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[14]); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Status</span>
-                                <span class="detail-value">
-                                    <?php 
-                                    $status = htmlspecialchars($selected_status);
-                                    $status_class = "";
-                                    if (stripos($status, 'released') !== false) {
-                                        $status_class = "status-released";
-                                    } elseif (stripos($status, 'releasing') !== false) {
-                                        $status_class = "status-for-releasing";
-                                    }
-                                    echo "<span class='status-badge $status_class'>$status</span>";
-                                    ?>
-                                </span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Fund</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[17]); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Year Purchased</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data[18]); ?></span>
-                            </div>
-                            
                             <?php if (!empty($data[11])): ?>
                             <div class="detail-item" style="grid-column: 1 / -1;">
                                 <span class="detail-label">Remarks</span>
                                 <span class="detail-value"><?php echo htmlspecialchars($data[11]); ?></span>
                             </div>
                             <?php endif; ?>
+                                </div>
+                            </div>
+                            
+                            <div class="details-section">
+                                <h4 class="section-title">Status & Location</h4>
+                                <div class="property-details">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Condition</span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data[14]); ?></span>
+                                    </div>
+                                    
+                                    <div class="detail-item">
+                                        <span class="detail-label">Status</span>
+                                        <span class="detail-value">
+                                            <?php 
+                                            $status = htmlspecialchars($selected_status);
+                                            $status_class = "";
+                                            if (stripos($status, 'released') !== false) {
+                                                $status_class = "status-released";
+                                            } elseif (stripos($status, 'releasing') !== false) {
+                                                $status_class = "status-for-releasing";
+                                            }
+                                            echo "<span class='status-badge $status_class'>$status</span>";
+                                            ?>
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="detail-item">
+                                        <span class="detail-label">Actual Location</span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data[10]); ?></span>
+                                    </div>
+                                    
+                                    <div class="detail-item">
+                                        <span class="detail-label">Accountable Person</span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data[8]); ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="details-section">
+                                <h4 class="section-title">Financial Information</h4>
+                                <div class="property-details">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Value</span>
+                                        <span class="detail-value value-highlight">₱<?php echo !empty($data[6]) ? number_format($data[6], 2) : '0.00'; ?></span>
+                                    </div>
+                                    
+                                    <div class="detail-item">
+                                        <span class="detail-label">Fund</span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data[17]); ?></span>
+                                    </div>
+                                    
+                                    <div class="detail-item">
+                                        <span class="detail-label">Year Purchased</span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data[18]); ?></span>
+                                    </div>
+                                    
+                                    <div class="detail-item">
+                                        <span class="detail-label">Acquisition Date</span>
+                                        <span class="detail-value"><?php echo htmlspecialchars($data[7]); ?></span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="qr-section">
-                    <h3>QR Code</h3>
-                    <div class="qr-code">
-                        <iframe frameborder='0' id='qrcode' src='' width='200' height='200'></iframe>
+                    <div class="qr-header">
+                        <h3>QR Code</h3>
+                        <p>Scan this QR code to view property details</p>
                     </div>
-                    <p>Scan this QR code to view property details</p>
+                    <div class="qr-code-container">
+                        <div class="qr-code">
+                            <iframe frameborder='0' id='qrcode' src='' width='200' height='200'></iframe>
+                        </div>
+                        <div class="qr-actions">
+                            <button class="btn btn-primary btn-sm" onclick="window.print()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="6,9 6,2 18,2 18,9"/>
+                                    <path d="M6,18H4a2,2,0,0,1-2-2V8a2,2,0,0,1,2-2H16a2,2,0,0,1,2,2v2"/>
+                                    <path d="M18,14h1a2,2,0,0,1,2,2v4a2,2,0,0,1-2,2H6a2,2,0,0,1-2-2V20a2,2,0,0,1,2-2h1"/>
+                                    <rect x="6" y="14" width="12" height="8"/>
+                                </svg>
+                                Print QR Code
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 
                 <?php if ($show_release_section): ?>
-                <div class="property-card" style="margin-top: 2rem;">
-                    <div class="property-header" style="background: linear-gradient(135deg, var(--warning-color), #d97706);">
-                        <h3>Release Property</h3>
-                        <p>Process property release</p>
+                <div class="property-card release-card" style="margin-top: 2rem;">
+                    <div class="property-header release-header">
+                        <div class="property-header-content">
+                            <div class="property-icon release-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7,10 12,15 17,10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                            </div>
+                            <div class="property-title">
+                                <h3>Release Property</h3>
+                                <p>Process property release</p>
+                            </div>
+                        </div>
                     </div>
                     <div class="property-body">
                         <form action='receiveadd.php' method='POST'>
