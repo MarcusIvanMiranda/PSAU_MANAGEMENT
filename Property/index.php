@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+if (!isset($_SESSION['property_loggedin']) || $_SESSION['property_loggedin'] !== true) {
     header("location: login.php");
     exit;
 }
@@ -30,7 +30,7 @@ $filtertext="";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PSAU Property Management System</title>
     <link rel="icon" href="PSAU.ico">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header class="header">
@@ -41,7 +41,20 @@ $filtertext="";
                 <h2>Property Management System</h2>
             </div>
             <div class="header-user">
-                <span class="user-info">Welcome, <?php echo htmlspecialchars($_SESSION['full_name']); ?></span>
+                <div style="text-align: right; margin-bottom: 0.5rem;">
+                    <span class="user-info">Welcome, <?php echo htmlspecialchars($_SESSION['property_full_name']); ?></span>
+                    <?php if (!empty($_SESSION['property_office'])): ?>
+                        <div class="user-role">
+                            🏢 <?php echo htmlspecialchars($_SESSION['property_office']); ?>
+                            <?php if (!empty($_SESSION['property_members'])): ?>
+                                | 👑 <?php echo htmlspecialchars($_SESSION['property_members']); ?>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <?php if ($_SESSION['property_role'] === 'admin'): ?>
+                    <a href="manage_accounts.php" class="btn btn-primary" style="margin-right: 0.5rem;">👥 Manage Accounts</a>
+                <?php endif; ?>
                 <a href="logout.php" class="btn btn-secondary">Logout</a>
             </div>
         </div>
@@ -76,21 +89,6 @@ if (!empty($filtertext)) {
 
 $sql = "SELECT * FROM ".$datatable.$search_condition." ORDER BY property_no DESC LIMIT $start_from, ".$results_per_page;
 $rs_result = $conn->query($sql);
-
-// Debug: Show SQL query and results
-if ($filtertext) {
-    echo "<div style='background: #f0f0f0; padding: 10px; margin: 10px; border: 1px solid #ccc;'>";
-    echo "<strong>Debug SQL:</strong> " . htmlspecialchars($sql) . "<br>";
-    echo "<strong>Results found:</strong> " . ($rs_result ? $rs_result->num_rows : "Query failed") . "<br>";
-    if ($rs_result && $rs_result->num_rows > 0) {
-        $first_row = $rs_result->fetch_assoc();
-        echo "<strong>First row data:</strong><br>";
-        echo "<pre>" . print_r($first_row, true) . "</pre>";
-        // Reset pointer
-        $rs_result->data_seek(0);
-    }
-    echo "</div>";
-}
 
 // Get total count for pagination
 $count_sql = "SELECT COUNT(*) AS total FROM ".$datatable.$search_condition;

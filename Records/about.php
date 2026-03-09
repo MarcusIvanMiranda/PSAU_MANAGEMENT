@@ -308,7 +308,7 @@
                 <div class="info-section">
                     <h2 class="section-title">System Overview</h2>
                     <p class="info-content">
-                        The PSAU Document Tracking System is a comprehensive digital solution designed to streamline the management, tracking, and monitoring of documents within the Pampanga State Agricultural University. This system ensures efficient document workflow, enhanced security, and improved accountability across all university departments.
+                        The PSAU Document Tracking System is a comprehensive digital solution designed to streamline the management, tracking, and monitoring of documents within the Pampanga State Agricultural University. This system ensures efficient document workflow, enhanced security, and improved accountability across all university offices.
                     </p>
                 </div>
                 

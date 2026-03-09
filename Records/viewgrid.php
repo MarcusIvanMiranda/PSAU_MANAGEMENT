@@ -693,7 +693,7 @@ $filtertext = "";
                                     <form action='details.php' method='POST' style="display: inline;">
                                         <button type="submit" name='RefID' value="<?php echo $row["serial_code"]; ?>" 
                                                 class="btn-action" title="Track Document">
-                                            📍 Track
+                                            � Track
                                         </button>
                                     </form>
                                 </div>
@@ -735,7 +735,7 @@ $filtertext = "";
                                             <form action='details.php' method='POST' style="display: inline;">
                                                 <button type="submit" name='RefID' value="<?php echo $row["serial_code"]; ?>" 
                                                         class="btn-action" title="Track Document">
-                                                    📍 Track
+                                                    � Track
                                                 </button>
                                             </form>
                                         </div>

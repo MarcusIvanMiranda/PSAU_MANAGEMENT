@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
+if (isset($_SESSION['property_loggedin']) && $_SESSION['property_loggedin'] === true) {
     header("location: index.php");
     exit;
 }
@@ -12,7 +12,7 @@ if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - PSAU Property Management System</title>
     <link rel="icon" href="PSAU.ico">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
     <style>
         body {
             display: flex;

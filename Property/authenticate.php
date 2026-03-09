@@ -15,31 +15,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             exit();
         }
         
-        // Create users table if it doesn't exist
-        $conn->query("CREATE TABLE IF NOT EXISTS users (
+        // Create property_users table if it doesn't exist
+        $conn->query("CREATE TABLE IF NOT EXISTS property_users (
             id INT(11) AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
             full_name VARCHAR(100) NOT NULL,
             email VARCHAR(100) NOT NULL,
+            office VARCHAR(100) DEFAULT NULL,
+            members VARCHAR(100) DEFAULT NULL,
             role VARCHAR(50) NOT NULL DEFAULT 'user',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )");
         
         // Check if admin user exists, if not create it
-        $check_admin = "SELECT id FROM users WHERE username = 'admin'";
+        $check_admin = "SELECT id FROM property_users WHERE username = 'admin'";
         $admin_result = $conn->query($check_admin);
         
         if ($admin_result->num_rows === 0) {
             // Create admin user with password admin123
             $admin_password = password_hash('admin123', PASSWORD_DEFAULT);
-            $create_admin = "INSERT INTO users (username, password, full_name, email, role) VALUES (?, ?, ?, ?, ?)";
+            $create_admin = "INSERT INTO property_users (username, password, full_name, email, office, members, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
             $stmt = $conn->prepare($create_admin);
-            $stmt->bind_param("sssss", $admin_username, $admin_password, $admin_fullname, $admin_email, $admin_role);
+            $stmt->bind_param("sssssss", $admin_username, $admin_password, $admin_fullname, $admin_email, $admin_office, $admin_members, $admin_role);
             
             $admin_username = 'admin';
-            $admin_fullname = 'Administrator';
-            $admin_email = 'admin@psau.edu.ph';
+            $admin_fullname = 'Property Administrator';
+            $admin_email = 'property.admin@psau.edu.ph';
+            $admin_office = 'PROPERTY MANAGEMENT OFFICE';
+            $admin_members = 'Head';
             $admin_role = 'admin';
             
             $stmt->execute();
@@ -47,7 +51,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         
         // Authenticate user
-        $sql = "SELECT id, username, password, full_name, role FROM users WHERE username = ?";
+        $sql = "SELECT id, username, password, full_name, office, members, role FROM property_users WHERE username = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("s", $form_username);
         $stmt->execute();
@@ -57,12 +61,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $user = $result->fetch_assoc();
             
             if (password_verify($form_password, $user['password'])) {
-                $_SESSION['loggedin'] = true;
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['full_name'] = $user['full_name'];
-                $_SESSION['role'] = $user['role'];
-                $_SESSION['dbname'] = $dbname;
+                $_SESSION['property_loggedin'] = true;
+                $_SESSION['property_username'] = $user['username'];
+                $_SESSION['property_user_id'] = $user['id'];
+                $_SESSION['property_full_name'] = $user['full_name'];
+                $_SESSION['property_office'] = $user['office'];
+                $_SESSION['property_members'] = $user['members'];
+                $_SESSION['property_role'] = $user['role'];
+                $_SESSION['property_dbname'] = $dbname;
                 
                 $conn->close();
                 

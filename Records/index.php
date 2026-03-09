@@ -4,6 +4,9 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     header("location: login.php");
     exit;
 }
+
+require_once 'connect.php';
+$conn = new mysqli($servername, $username, $password, $dbname);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -499,13 +502,15 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
         }
         
         /* Icons */
-        .icon-home::before { content: "🏠"; }
-        .icon-documents::before { content: "📝"; }
-        .icon-for-releasing::before { content: "⬆️"; }
-        .icon-released::before { content: "✅"; }
+        .icon-dashboard::before { content: "🏠"; }
+        .icon-plus::before { content: "📝"; }
+        .icon-globe::before { content: "🌍"; }
+        .icon-clipboard::before { content: "📋"; }
+        .icon-building::before { content: "🏢"; }
+        .icon-outbox::before { content: "⬆️"; }
+        .icon-check-circle::before { content: "✅"; }
         .icon-users::before { content: "👥"; }
-        .icon-settings::before { content: "⚙️"; }
-        .icon-about::before { content: "ℹ️"; }
+        .icon-info::before { content: "ℹ️"; }
         .icon-logout::before { content: "🚪"; }
         
         /* Scrollbar Styles */
@@ -567,25 +572,57 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
             <nav class="sidebar-nav">
                 <div class="nav-item">
                     <button class="nav-link active" onclick="loadPage('logbook.php', this)">
-                        <span class="nav-icon icon-home"></span>
+                        <span class="nav-icon icon-dashboard"></span>
                         Home
                     </button>
                 </div>
                 <div class="nav-item">
                     <button class="nav-link" onclick="loadPage('adddocument.php', this)">
-                        <span class="nav-icon icon-documents"></span>
+                        <span class="nav-icon icon-plus"></span>
                         Register Document
                     </button>
                 </div>
+                <?php 
+                // Get current user's members role to show/hide Other Offices link
+                $user_result = $conn->query("SELECT members FROM users WHERE id = " . $_SESSION['user_id']);
+                $current_user_data = $user_result->fetch_assoc();
+                
+                if ($current_user_data['members'] === 'Head'): 
+                ?>
+                <div class="nav-item">
+                    <button class="nav-link" onclick="loadPage('documents.php', this)">
+                        <span class="nav-icon icon-globe"></span>
+                        Other Offices
+                    </button>
+                </div>
+                <div class="nav-item">
+                    <button class="nav-link" onclick="loadPage('manage_requests.php', this)">
+                        <span class="nav-icon icon-clipboard"></span>
+                        Manage Requests
+                    </button>
+                </div>
+                <?php endif; ?>
+                
+                <?php 
+                // Hide My Office link from admin accounts
+                if ($_SESSION['role'] !== 'admin'): 
+                ?>
+                <div class="nav-item">
+                    <button class="nav-link" onclick="loadPage('department_documents.php', this)">
+                        <span class="nav-icon icon-building"></span>
+                        My Office
+                    </button>
+                </div>
+                <?php endif; ?>
                 <div class="nav-item">
                     <button class="nav-link" onclick="loadPage('viewgrid.php', this)">
-                        <span class="nav-icon icon-for-releasing"></span>
+                        <span class="nav-icon icon-outbox"></span>
                         For Releasing
                     </button>
                 </div>
                 <div class="nav-item">
                     <button class="nav-link" onclick="loadPage('viewdelivered.php', this)">
-                        <span class="nav-icon icon-released"></span>
+                        <span class="nav-icon icon-check-circle"></span>
                         Released
                     </button>
                 </div>
@@ -601,7 +638,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
                 </div>
                 <div class="nav-item">
                     <button class="nav-link" onclick="loadPage('about.php', this)">
-                        <span class="nav-icon icon-about"></span>
+                        <span class="nav-icon icon-info"></span>
                         About
                     </button>
                 </div>
@@ -727,6 +764,9 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
                     'logbook.php': 'Dashboard',
                     'viewgrid.php': 'For Releasing',
                     'adddocument.php': 'Register Document',
+                    'documents.php': 'Other Offices',
+                    'department_documents.php': 'My Office',
+                    'manage_requests.php': 'Manage Requests',
                     'viewdelivered.php': 'Released Documents',
                     'usermanager.php': 'User Manager',
                     'about.php': 'About',

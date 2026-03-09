@@ -1,8 +1,10 @@
 <?php
 session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+
+// Check if user is logged in and is admin
+if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true || $_SESSION['role'] !== 'admin') {
     header("location: login.php");
-    exit();
+    exit;
 }
 
 require_once 'connect.php';
@@ -14,7 +16,7 @@ if ($conn->connect_error) {
 }
 
 $current_user_id = $_SESSION['user_id'];
-$result = $conn->query("SELECT role FROM users WHERE id = $current_user_id");
+$result = $conn->query("SELECT role FROM property_users WHERE id = $current_user_id");
 $current_user = $result->fetch_assoc();
 
 if ($current_user['role'] !== 'admin') {
@@ -28,13 +30,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['create_user'])) {
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $full_name = $_POST['full_name'];
     $email = $_POST['email'];
-    $department = $_POST['department'];
+    $office = $_POST['office'];
     $members = $_POST['members'];
     $role = $_POST['role'];
     
-    $sql = "INSERT INTO users (username, password, full_name, email, department, members, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO property_users (username, password, full_name, email, office, members, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssssss", $username, $password, $full_name, $email, $department, $members, $role);
+    $stmt->bind_param("sssssss", $username, $password, $full_name, $email, $office, $members, $role);
     
     if ($stmt->execute()) {
         $success_message = "User created successfully!";
@@ -53,24 +55,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_user'])) {
     $username = $_POST['edit_username'];
     $full_name = $_POST['edit_full_name'];
     $email = $_POST['edit_email'];
-    $department = $_POST['edit_department'];
+    $office = $_POST['edit_office'];
     $members = $_POST['edit_members'];
     $role = $_POST['edit_role'];
-    $password = $_POST['edit_password'];
     
-    // Build update query
-    if (!empty($password)) {
-        // Update with new password
-        $password_hash = password_hash($password, PASSWORD_DEFAULT);
-        $sql = "UPDATE users SET username = ?, full_name = ?, email = ?, department = ?, members = ?, role = ?, password = ? WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("sssssssi", $username, $full_name, $email, $department, $members, $role, $password_hash, $user_id);
-    } else {
-        // Update without changing password
-        $sql = "UPDATE users SET username = ?, full_name = ?, email = ?, department = ?, members = ?, role = ? WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ssssssi", $username, $full_name, $email, $department, $members, $role, $user_id);
-    }
+    $sql = "UPDATE property_users SET username = ?, full_name = ?, email = ?, office = ?, members = ?, role = ? WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ssssssi", $username, $full_name, $email, $office, $members, $role, $user_id);
     
     if ($stmt->execute()) {
         $success_message = "User updated successfully!";
@@ -84,128 +75,129 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_user'])) {
 }
 
 // Handle user deletion
-if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
-    $delete_id = $_GET['delete'];
-    // Don't allow deleting yourself
-    if ($delete_id != $current_user_id) {
-        $conn->query("DELETE FROM users WHERE id = $delete_id");
-        $success_message = "User deleted successfully!";
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_user'])) {
+    $user_id = $_POST['delete_user_id'];
+    
+    // Prevent admin from deleting themselves
+    if ($user_id != $current_user_id) {
+        $sql = "DELETE FROM property_users WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $user_id);
+        
+        if ($stmt->execute()) {
+            $success_message = "User deleted successfully!";
+        } else {
+            $error_message = "Error deleting user: " . $stmt->error;
+        }
+    } else {
+        $error_message = "You cannot delete your own account.";
     }
 }
 
-// Get all users
-$users = $conn->query("SELECT id, username, full_name, email, department, members, role, created_at FROM users ORDER BY created_at DESC");
+// Fetch all users
+$users = $conn->query("SELECT id, username, full_name, email, office, members, role, created_at FROM property_users ORDER BY created_at DESC");
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Manager - PSAU Records System</title>
+    <title>User Manager - PSAU Property Management</title>
     <link rel="icon" href="PSAU.ico">
-    <link rel="stylesheet" href="assets/css/psau-style.css">
+    <link rel="stylesheet" href="style.css">
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: var(--psau-gray-50);
-            font-family: var(--font-sans);
-        }
-        
+        /* Page Container */
         .page-container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 1.5rem;
+            padding: 2rem;
+            background: var(--gray-50);
+            min-height: 100vh;
         }
-        
+
+        /* Page Header */
         .page-header {
-            background: linear-gradient(135deg, var(--psau-primary) 0%, var(--psau-secondary) 100%);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-lg);
-            padding: var(--space-8);
-            margin-bottom: var(--space-6);
-            border: 1px solid var(--psau-gray-200);
-            position: relative;
-            overflow: hidden;
-            color: var(--psau-white);
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            border: 1px solid var(--gray-200);
         }
-        
-        .page-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.15"/><circle cx="20" cy="60" r="0.5" fill="white" opacity="0.15"/><circle cx="80" cy="40" r="0.5" fill="white" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            pointer-events: none;
-        }
-        
+
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: var(--space-4);
-            position: relative;
-            z-index: 1;
+            gap: 1rem;
         }
-        
+
         .page-title {
             font-size: 2rem;
             font-weight: 700;
-            color: var(--psau-white);
-            margin: 0;
+            color: var(--primary-color);
+            margin: 0 0 0.5rem 0;
         }
-        
+
         .page-subtitle {
-            color: rgba(255, 255, 255, 0.9);
-            margin: var(--space-1) 0 0 0;
+            color: var(--gray-600);
+            margin: 0;
             font-size: 1rem;
         }
-        
-        .header-actions {
-            display: flex;
-            gap: 0.75rem;
-        }
-        
+
+        /* Main Content */
         .main-content {
-            background: var(--psau-white);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow);
-            border: 1px solid var(--psau-gray-200);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--gray-200);
             overflow: hidden;
         }
-        
+
         .content-body {
-            padding: 1.5rem;
+            padding: 2rem;
         }
-        
+
         /* Table Styles */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
         .users-table {
             width: 100%;
-            border-collapse: collapse;
-            font-size: 0.875rem;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
-        
-        .users-table th,
+
+        .users-table th {
+            background: var(--gray-50);
+            color: var(--gray-700);
+            font-weight: 600;
+            text-align: left;
+            padding: 1rem;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            background-color: var(--gray-50);
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .users-table tbody tr:hover {
+            background-color: var(--gray-50);
+        }
+
         .users-table td {
             padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--psau-gray-200);
+            border-bottom: 1px solid var(--gray-200);
+            vertical-align: middle;
         }
-        
-        .users-table th {
-            font-weight: 600;
-            color: var(--psau-gray-700);
-            background-color: var(--psau-gray-50);
-            border-bottom: 2px solid var(--psau-gray-200);
-        }
-        
-        .users-table tbody tr:hover {
-            background-color: var(--psau-gray-50);
-        }
-        
+
         /* Role Badge */
         .role-badge {
             display: inline-flex;
@@ -217,25 +209,25 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
             text-transform: uppercase;
             letter-spacing: 0.025em;
         }
-        
+
         .role-admin {
             background-color: #fef2f2;
             color: #991b1b;
             border: 1px solid #fecaca;
         }
-        
+
         .role-user {
             background-color: #f0fdf4;
             color: #166534;
             border: 1px solid #bbf7d0;
         }
-        
+
         /* User Avatar */
         .user-avatar {
             width: 32px;
             height: 32px;
-            background: var(--psau-primary);
-            color: var(--psau-white);
+            background: var(--primary-color);
+            color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -244,269 +236,305 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
             font-size: 0.875rem;
             margin-right: 0.75rem;
         }
-        
+
         .user-info {
             display: flex;
             align-items: center;
         }
-        
+
         .user-details {
             flex: 1;
         }
-        
+
         .user-name {
-            font-weight: 500;
-            color: var(--psau-gray-900);
+            font-weight: 600;
+            color: var(--gray-900);
             margin-bottom: 0.125rem;
         }
-        
+
         .user-email {
-            font-size: 0.75rem;
-            color: var(--psau-gray-500);
+            font-size: 0.875rem;
+            color: var(--gray-500);
         }
-        
+
         /* Action Buttons */
         .action-buttons {
             display: flex;
             gap: 0.5rem;
         }
-        
+
         .btn-icon {
-            padding: 0.5rem;
-            border-radius: var(--radius);
-            border: 1px solid var(--psau-gray-300);
-            background: var(--psau-white);
-            color: var(--psau-gray-600);
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn-icon.edit {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .btn-icon.edit:hover {
+            background: #bfdbfe;
+        }
+
+        .btn-icon.delete {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .btn-icon.delete:hover {
+            background: #fecaca;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
             font-size: 0.875rem;
         }
-        
-        .btn-icon:hover {
-            background: var(--psau-gray-50);
-            border-color: var(--psau-gray-400);
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
         }
-        
-        .btn-icon.delete:hover {
-            background: #fef2f2;
-            color: #991b1b;
-            border-color: #fecaca;
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
         }
-        
-        .btn-icon.edit:hover {
-            background: #f0f9ff;
-            color: #1e40af;
-            border-color: #bfdbfe;
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
         }
-        
-        /* Modal */
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        /* Modal Styles */
         .modal {
             display: none;
             position: fixed;
-            top: 0;
+            z-index: 1000;
             left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.show {
+            display: flex;
             align-items: center;
             justify-content: center;
         }
-        
-        .modal.show {
-            display: flex;
-        }
-        
+
         .modal-content {
-            background: var(--psau-white);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-xl);
-            max-width: 500px;
+            background: white;
+            border-radius: 12px;
             width: 90%;
+            max-width: 500px;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         }
-        
+
         .modal-header {
             padding: 1.5rem;
-            border-bottom: 1px solid var(--psau-gray-200);
+            border-bottom: 1px solid var(--gray-200);
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
         }
-        
+
         .modal-title {
             font-size: 1.25rem;
             font-weight: 600;
-            color: var(--psau-gray-900);
+            color: var(--gray-900);
             margin: 0;
         }
-        
+
         .modal-close {
             background: none;
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
-            color: var(--psau-gray-400);
-            padding: 0;
-            width: 2rem;
-            height: 2rem;
+            color: var(--gray-400);
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: var(--radius);
+            border-radius: 6px;
         }
-        
+
         .modal-close:hover {
-            color: var(--psau-gray-600);
-            background: var(--psau-gray-100);
+            background: var(--gray-100);
+            color: var(--gray-600);
         }
-        
+
         .modal-body {
             padding: 1.5rem;
         }
-        
+
         .modal-footer {
-            padding: 1rem 1.5rem;
-            border-top: 1px solid var(--psau-gray-200);
+            padding: 1.5rem;
+            border-top: 1px solid var(--gray-200);
             display: flex;
-            gap: 0.75rem;
             justify-content: flex-end;
+            gap: 0.75rem;
         }
-        
+
         /* Form Styles */
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
+            margin-bottom: 1rem;
         }
-        
+
         .form-group {
-            margin-bottom: 1.25rem;
+            margin-bottom: 1rem;
         }
-        
+
         .form-label {
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 500;
-            color: var(--psau-gray-700);
+            color: var(--gray-700);
             font-size: 0.875rem;
         }
-        
+
         .form-control {
-            display: block;
             width: 100%;
-            padding: 0.625rem 0.875rem;
+            padding: 0.75rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
             font-size: 0.875rem;
-            line-height: 1.5;
-            color: var(--psau-gray-900);
-            background-color: var(--psau-white);
-            border: 1px solid var(--psau-gray-300);
-            border-radius: var(--radius);
-            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            transition: border-color 0.2s;
         }
-        
+
         .form-control:focus {
-            outline: 0;
-            border-color: var(--psau-primary);
-            box-shadow: 0 0 0 3px rgb(30 90 61 / 0.1);
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(30, 90, 61, 0.1);
         }
-        
-        /* Alert */
+
+        /* Alerts */
         .alert {
-            padding: 0.75rem 1rem;
-            border-radius: var(--radius);
+            padding: 1rem;
+            border-radius: 8px;
             margin-bottom: 1.5rem;
-            border: 1px solid;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
-        
+
         .alert-success {
-            background-color: #f0fdf4;
+            background: #f0fdf4;
             color: #166534;
-            border-color: #bbf7d0;
+            border: 1px solid #bbf7d0;
         }
-        
+
         .alert-error {
-            background-color: #fef2f2;
+            background: #fef2f2;
             color: #991b1b;
-            border-color: #fecaca;
+            border: 1px solid #fecaca;
         }
-        
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state-text {
+            color: var(--gray-500);
+            margin-bottom: 2rem;
+        }
+
+        /* Back Link */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            margin-bottom: 2rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .back-link:hover {
+            background: var(--gray-100);
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .page-container {
                 padding: 1rem;
             }
-            
+
             .header-content {
                 flex-direction: column;
                 align-items: flex-start;
             }
-            
+
             .form-row {
                 grid-template-columns: 1fr;
             }
-            
+
             .users-table {
-                font-size: 0.75rem;
+                font-size: 0.875rem;
             }
-            
+
             .users-table th,
             .users-table td {
-                padding: 0.5rem;
+                padding: 0.75rem 0.5rem;
             }
-            
+
             .action-buttons {
                 flex-direction: column;
             }
-        }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--psau-gray-500);
-        }
-        
-        .empty-state-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-        
-        .empty-state-title {
-            font-size: 1.125rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-            color: var(--psau-gray-700);
-        }
-        
-        .empty-state-text {
-            font-size: 0.875rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        /* Scrollbar Styles */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--psau-accent);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #3d7d54;
         }
     </style>
 </head>
 <body>
     <div class="page-container">
+        <a href="index.php" class="back-link">← Back to Dashboard</a>
+        
         <!-- Page Header -->
         <div class="page-header">
             <div class="header-content">
@@ -527,13 +555,13 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
             <div class="content-body">
                 <?php if (isset($success_message)): ?>
                     <div class="alert alert-success">
-                        <?php echo htmlspecialchars($success_message); ?>
+                        ✅ <?php echo htmlspecialchars($success_message); ?>
                     </div>
                 <?php endif; ?>
                 
                 <?php if (isset($error_message)): ?>
                     <div class="alert alert-error">
-                        <?php echo htmlspecialchars($error_message); ?>
+                        ⚠️ <?php echo htmlspecialchars($error_message); ?>
                     </div>
                 <?php endif; ?>
                 
@@ -566,7 +594,7 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                                             </div>
                                         </td>
                                         <td><?php echo htmlspecialchars($user['username']); ?></td>
-                                        <td><?php echo htmlspecialchars($user['department'] ?? 'Not Assigned'); ?></td>
+                                        <td><?php echo htmlspecialchars($user['office'] ?? 'Not Assigned'); ?></td>
                                         <td><?php echo htmlspecialchars($user['members'] ?? 'Not Assigned'); ?></td>
                                         <td>
                                             <span class="role-badge role-<?php echo $user['role']; ?>">
@@ -576,7 +604,7 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                                         <td><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="btn-icon edit" onclick="editUser(<?php echo $user['id']; ?>)" title="Edit User">
+                                                <button class="btn-icon edit" onclick="editUser(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>', '<?php echo htmlspecialchars($user['full_name']); ?>', '<?php echo htmlspecialchars($user['email']); ?>', '<?php echo htmlspecialchars($user['office'] ?? ''); ?>', '<?php echo htmlspecialchars($user['members'] ?? ''); ?>', '<?php echo $user['role']; ?>')" title="Edit User">
                                                     ✏️
                                                 </button>
                                                 <?php if ($user['id'] != $current_user_id): ?>
@@ -584,7 +612,7 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                                                         🗑️
                                                     </button>
                                                 <?php else: ?>
-                                                    <span style="color: var(--psau-gray-400); font-size: 0.75rem;">Current User</span>
+                                                    <span style="color: var(--gray-400); font-size: 0.75rem;">Current User</span>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -638,9 +666,10 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="department" class="form-label">Office *</label>
-                            <select id="department" name="department" class="form-control" required>
+                            <label for="office" class="form-label">Office *</label>
+                            <select id="office" name="office" class="form-control" required>
                                 <option value="">Select Office</option>
+                                <option value="PROPERTY MANAGEMENT OFFICE">PROPERTY MANAGEMENT OFFICE</option>
                                 <option value="MIS UNIT">MIS UNIT</option>
                                 <option value="RECORD UNIT">RECORD UNIT</option>
                                 <option value="HR">HR</option>
@@ -651,7 +680,7 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                             <select id="members" name="members" class="form-control" required>
                                 <option value="">Select Members</option>
                                 <option value="Head">Head</option>
-                                <option value="Member">Member</option>
+                                <option value="Staff">Staff</option>
                             </select>
                         </div>
                     </div>
@@ -697,9 +726,10 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                             <input type="text" id="edit_full_name" name="edit_full_name" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label for="edit_department" class="form-label">Office *</label>
-                            <select id="edit_department" name="edit_department" class="form-control" required>
+                            <label for="edit_office" class="form-label">Office *</label>
+                            <select id="edit_office" name="edit_office" class="form-control" required>
                                 <option value="">Select Office</option>
+                                <option value="PROPERTY MANAGEMENT OFFICE">PROPERTY MANAGEMENT OFFICE</option>
                                 <option value="MIS UNIT">MIS UNIT</option>
                                 <option value="RECORD UNIT">RECORD UNIT</option>
                                 <option value="HR">HR</option>
@@ -712,7 +742,7 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                             <select id="edit_members" name="edit_members" class="form-control" required>
                                 <option value="">Select Members</option>
                                 <option value="Head">Head</option>
-                                <option value="Member">Member</option>
+                                <option value="Staff">Staff</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -723,10 +753,6 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                             </select>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="edit_password" class="form-label">New Password (leave blank to keep current)</label>
-                        <input type="password" id="edit_password" name="edit_password" class="form-control" placeholder="Enter new password or leave blank">
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="hideEditModal()">Cancel</button>
@@ -735,130 +761,96 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
             </form>
         </div>
     </div>
-    
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Confirm Delete</h2>
+                <button class="modal-close" onclick="hideDeleteModal()">&times;</button>
+            </div>
+            <form method="post">
+                <input type="hidden" id="delete_user_id" name="delete_user_id">
+                <div class="modal-body">
+                    <p>Are you sure you want to delete user <strong id="delete_user_name"></strong>? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="hideDeleteModal()">Cancel</button>
+                    <button type="submit" name="delete_user" class="btn btn-primary" style="background: #dc2626;">Delete User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        // Modal functions
+        // Modal Functions
         function showCreateModal() {
             document.getElementById('createModal').classList.add('show');
             document.body.style.overflow = 'hidden';
         }
-        
+
         function hideCreateModal() {
             document.getElementById('createModal').classList.remove('show');
-            document.body.style.overflow = '';
-            // Reset form
+            document.body.style.overflow = 'auto';
             document.querySelector('#createModal form').reset();
         }
-        
-        // Delete confirmation
-        function confirmDelete(userId, userName) {
-            if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
-                window.location.href = `?delete=${userId}`;
-            }
-        }
-        
-        // Edit user function
-        function editUser(userId) {
-            // Fetch user data via AJAX to get department info
-            fetch(`get_user_data.php?id=${userId}`)
-                .then(response => response.json())
-                .then(user => {
-                    // Fill the edit form
-                    document.getElementById('edit_user_id').value = user.id;
-                    document.getElementById('edit_username').value = user.username;
-                    document.getElementById('edit_email').value = user.email;
-                    document.getElementById('edit_full_name').value = user.full_name;
-                    document.getElementById('edit_department').value = user.department || '';
-                    document.getElementById('edit_members').value = user.members || '';
-                    document.getElementById('edit_role').value = user.role;
-                    document.getElementById('edit_password').value = '';
-                    
-                    // Show the edit modal
-                    showEditModal();
-                })
-                .catch(error => {
-                    console.error('Error fetching user data:', error);
-                    // Fallback to table data if AJAX fails
-                    const row = document.querySelector(`tr:has(button[onclick="editUser(${userId})"])`);
-                    const cells = row.getElementsByTagName('td');
-                    
-                    const userInfo = cells[0].querySelector('.user-name').textContent;
-                    const userEmail = cells[0].querySelector('.user-email').textContent;
-                    const username = cells[1].textContent;
-                    const role = cells[2].querySelector('.role-badge').textContent.toLowerCase();
-                    
-                    document.getElementById('edit_user_id').value = userId;
-                    document.getElementById('edit_username').value = username;
-                    document.getElementById('edit_email').value = userEmail;
-                    document.getElementById('edit_full_name').value = userInfo;
-                    document.getElementById('edit_department').value = '';
-                    document.getElementById('edit_role').value = role;
-                    document.getElementById('edit_password').value = '';
-                    
-                    showEditModal();
-                });
-        }
-        
+
         function showEditModal() {
             document.getElementById('editModal').classList.add('show');
             document.body.style.overflow = 'hidden';
         }
-        
+
         function hideEditModal() {
             document.getElementById('editModal').classList.remove('show');
-            document.body.style.overflow = '';
-            document.querySelector('#editModal form').reset();
+            document.body.style.overflow = 'auto';
         }
-        
-        // Close modal on outside click
-        document.getElementById('createModal').addEventListener('click', function(event) {
-            if (event.target === this) {
-                hideCreateModal();
+
+        function showDeleteModal() {
+            document.getElementById('deleteModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Edit User Function
+        function editUser(id, username, fullName, email, office, members, role) {
+            document.getElementById('edit_user_id').value = id;
+            document.getElementById('edit_username').value = username;
+            document.getElementById('edit_full_name').value = fullName;
+            document.getElementById('edit_email').value = email;
+            document.getElementById('edit_office').value = office;
+            document.getElementById('edit_members').value = members;
+            document.getElementById('edit_role').value = role;
+            showEditModal();
+        }
+
+        // Delete User Function
+        function confirmDelete(id, fullName) {
+            document.getElementById('delete_user_id').value = id;
+            document.getElementById('delete_user_name').textContent = fullName;
+            showDeleteModal();
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('show');
+                document.body.style.overflow = 'auto';
             }
-        });
-        
-        document.getElementById('editModal').addEventListener('click', function(event) {
-            if (event.target === this) {
-                hideEditModal();
-            }
-        });
-        
-        // Close modal on Escape key
+        }
+
+        // Close modals with Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                hideCreateModal();
-                hideEditModal();
-            }
-        });
-
-        // Form validation
-        document.querySelector('#createModal form').addEventListener('submit', function(e) {
-            const username = document.getElementById('username').value.trim();
-            const existingUsernames = <?php echo json_encode(array_column($users->fetch_all(MYSQLI_ASSOC), 'username')); ?>;
-            
-            if (existingUsernames.includes(username)) {
-                e.preventDefault();
-                alert('Username "' + username + '" already exists. Please choose a different username.');
-                return false;
-            }
-        });
-
-        document.querySelector('#editModal form').addEventListener('submit', function(e) {
-            const username = document.getElementById('edit_username').value.trim();
-            const currentUserId = document.getElementById('edit_user_id').value;
-            const existingUsers = <?php echo json_encode($users->fetch_all(MYSQLI_ASSOC)); ?>;
-            
-            const conflictingUser = existingUsers.find(user => 
-                user.username === username && user.id != currentUserId
-            );
-            
-            if (conflictingUser) {
-                e.preventDefault();
-                alert('Username "' + username + '" already exists. Please choose a different username.');
-                return false;
+                document.querySelectorAll('.modal.show').forEach(modal => {
+                    modal.classList.remove('show');
+                });
+                document.body.style.overflow = 'auto';
             }
         });
     </script>
 </body>
 </html>
-<?php $conn->close(); ?>
