@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Records QR Code - PSAU</title>
     <link rel="icon" href="PSAU.ico">
+    <?php
+    session_start();
+    if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+        header("location: login.php");
+        exit;
+    }
+    include 'connect.php';
+    ?>
     <style>
         @page {
             margin: 0.5in;
@@ -33,7 +41,7 @@
         }
         
         .qr-card {
-            border: 2px solid #1e40af;
+            border: 2px solid #059669;
             border-radius: 8px;
             padding: 1rem;
             text-align: center;
@@ -43,7 +51,7 @@
         }
         
         .qr-header {
-            border-bottom: 2px solid #1e40af;
+            border-bottom: 2px solid #059669;
             padding-bottom: 0.5rem;
             margin-bottom: 0.5rem;
         }
@@ -51,7 +59,7 @@
         .qr-header h3 {
             font-size: 1.1rem;
             font-weight: 700;
-            color: #1e40af;
+            color: #059669;
             margin-bottom: 0.25rem;
         }
         
@@ -88,7 +96,7 @@
         .property-tag {
             font-size: 0.9rem;
             font-weight: 700;
-            color: #1e40af;
+            color: #059669;
             margin: 0.5rem 0;
             padding: 0.25rem;
             background: #eff6ff;
@@ -108,7 +116,7 @@
             }
             
             .qr-card {
-                border: 1px solid #1e40af;
+                border: 1px solid #059669;
                 padding: 0.5rem;
             }
         }
@@ -146,12 +154,16 @@
         <?php while($data = mysqli_fetch_row($result)): ?>
             <div class="qr-container">
                 <div class="qr-card">
+                    <div class="qr-header">
+                        <h3>PSAU Records</h3>
+                        <p>PAMPANGA STATE AGRICULTURAL UNIVERSITY</p>
+                    </div>
                     <div class="qr-code">
                         <iframe frameborder='0' id='qrcode0' src='' width='180' height='180'></iframe>
                     </div>
                     
-                    <div class="property-tag">
-                        Record Number: <?php echo htmlspecialchars($data[0]); ?>
+                    <div class="qr-details">
+                        <p><strong>Record Number:</strong> <?php echo htmlspecialchars($data[0]); ?></p>
                     </div>
                 </div>
             </div>

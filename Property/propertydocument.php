@@ -1,21 +1,35 @@
 <?php
 session_start();
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
+if (!isset($_SESSION['property_loggedin']) || $_SESSION['property_loggedin'] !== true) {
     header("location: login.php");
     exit;
 }
 include "connect.php";
-error_reporting(0);
-$datatable = "property_list"; // MySQL table name
-$results_per_page = 27; // number of results per page
- 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
 // Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
-$filtertext="";
+
+$property_tag = isset($_GET['filtertext']) ? trim($_GET['filtertext']) : '';
+$property_data = null;
+
+if (!empty($property_tag)) {
+    $query = "SELECT * FROM property_list WHERE property_tag = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("s", $property_tag);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result && $result->num_rows > 0) {
+        $property_data = $result->fetch_assoc();
+    }
+    $stmt->close();
+}
 ?>
 
 <!DOCTYPE html>
@@ -23,9 +37,199 @@ $filtertext="";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Property Details - PSAU</title>
+    <title>Property Document - PSAU</title>
     <link rel="icon" href="PSAU.ico">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .document-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .document-header {
+            text-align: center;
+            border-bottom: 3px solid #059669;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .document-header h1 {
+            color: #059669;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .document-header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+        
+        .property-details {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .details-section {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .details-section h3 {
+            color: #059669;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #059669;
+            padding-bottom: 0.5rem;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+            align-items: flex-start;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #374151;
+            min-width: 180px;
+            flex-shrink: 0;
+            padding-top: 0.5rem;
+        }
+        
+        .detail-value {
+            color: #1f2937;
+            text-align: left;
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            line-height: 1.5;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .qr-section {
+            text-align: center;
+            background: #f0f9ff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 2px solid #059669;
+        }
+        
+        .qr-section h3 {
+            color: #059669;
+            margin-bottom: 1rem;
+        }
+        
+        .qr-code {
+            margin: 1rem 0;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .qr-code iframe {
+            border: 2px solid #059669;
+            border-radius: 8px;
+            width: 200px;
+            height: 200px;
+        }
+        
+        .property-tag-display {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #059669;
+            margin: 1rem 0;
+            padding: 0.5rem;
+            background: #eff6ff;
+            border-radius: 4px;
+            border: 1px solid #bfdbfe;
+        }
+        
+        .action-buttons {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #e2e8f0;
+        }
+        
+        .btn {
+            margin: 0 0.5rem;
+            padding: 0.75rem 1.5rem;
+            text-decoration: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #059669;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #047857;
+        }
+        
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #047857;
+        }
+        
+        .not-found {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+        
+        .not-found h2 {
+            color: #dc2626;
+            margin-bottom: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .property-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .document-container {
+                margin: 1rem;
+                padding: 1rem;
+            }
+        }
+        
+        @media print {
+            .action-buttons {
+                display: none;
+            }
+            
+            .document-container {
+                box-shadow: none;
+                margin: 0;
+                max-width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
     <header class="header">
@@ -35,254 +239,130 @@ $filtertext="";
                 <h1>PAMPANGA STATE AGRICULTURAL UNIVERSITY</h1>
                 <h2>Property Management System</h2>
             </div>
+            <div class="header-user">
+                <div style="text-align: right; margin-bottom: 0.5rem;">
+                    <span class="user-info">Welcome, <?php echo htmlspecialchars($_SESSION['property_full_name']); ?></span>
+                    <?php if (!empty($_SESSION['property_office'])): ?>
+                        <div class="user-role">
+                            🏢 <?php echo htmlspecialchars($_SESSION['property_office']); ?>
+                            <?php if (!empty($_SESSION['property_members'])): ?>
+                                | 👑 <?php echo htmlspecialchars($_SESSION['property_members']); ?>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <a href="index.php" class="btn btn-secondary">← Back to Properties</a>
+            </div>
         </div>
     </header>
 
-    <div class="container">
-        <nav style="margin-bottom: 2rem;">
-            <a href="index.php" class="btn btn-primary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-                Back to Property List
-            </a>
-        </nav>
+    <div class="document-container">
+        <?php if ($property_data): ?>
+            <div class="document-header">
+                <h1>PROPERTY DOCUMENT</h1>
+                <p>Official Property Record and Tracking Information</p>
+            </div>
 
-<?php
-$filtertext = isset($_GET['filtertext']) ? trim($_GET['filtertext']) : '';
-if (isset($_GET["page"])) { $page = $_GET["page"]; } else { $page=1; };
-$start_from = ($page-1) * $results_per_page;
-$sql = "SELECT * FROM ".$datatable." WHERE property_tag = '".$filtertext."' ORDER BY property_tag ASC LIMIT $start_from, ".$results_per_page;
-$rs_result = $conn->query($sql);
-
-// Get property details
-$ReferenceID = $filtertext;
-$query = "SELECT * FROM property_list WHERE property_tag='$ReferenceID'";
-$result = mysqli_query($conn, $query);
-?>
-
-        <?php if ($result && mysqli_num_rows($result) > 0): ?>
-            <?php while($data = mysqli_fetch_assoc($result)): ?>
-                <?php
-                $selected_status = $data['property_status']; // property_status field
-                $is_released = stripos($selected_status, 'released') !== false;
-                $show_release_section = !$is_released;
-                ?>
-                
-                <div class="property-card">
-                    <div class="property-header">
-                        <div class="property-header-content">
-                            <div class="property-icon">
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                                    <polyline points="9,22 9,12 15,12 15,22"/>
-                                </svg>
-                            </div>
-                            <div class="property-title">
-                                <h3>Property Details</h3>
-                                <p>Property Tag: <strong><?php echo htmlspecialchars($data[2]); ?></strong></p>
-                            </div>
-                        </div>
+            <div class="property-details">
+                <div class="details-section">
+                    <h3>Property Information</h3>
+                    <div class="detail-row">
+                        <span class="detail-label">Property #:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_no']); ?></span>
                     </div>
-                    
-                    <div class="property-body">
-                        <div class="property-details-grid">
-                            <div class="details-section">
-                                <h4 class="section-title">Basic Information</h4>
-                                <div class="property-details">
-                            <div class="detail-item">
-                                <span class="detail-label">Property Number</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_no']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Property Tag</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_tag']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Item</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_item']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Description/Model Number</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_description']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Serial Number</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_serial_number']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Value</span>
-                                <span class="detail-value">₱<?php echo !empty($data['property_value']) ? number_format($data['property_value'], 2) : '0.00'; ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Acquisition Date</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_acquisition_date']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Accountable Person</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_accountable_person']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Actual Location</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_actual_location']); ?></span>
-                            </div>
-                            
-                            <?php if (!empty($data['property_remarks'])): ?>
-                            <div class="detail-item" style="grid-column: 1 / -1;">
-                                <span class="detail-label">Remarks</span>
-                                <span class="detail-value"><?php echo htmlspecialchars($data['property_remarks']); ?></span>
-                            </div>
-                            <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <div class="details-section">
-                                <h4 class="section-title">Status & Location</h4>
-                                <div class="property-details">
-                                    <div class="detail-item">
-                                        <span class="detail-label">Condition</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_condition']); ?></span>
-                                    </div>
-                                    
-                                    <div class="detail-item">
-                                        <span class="detail-label">Status</span>
-                                        <span class="detail-value">
-                                            <?php 
-                                            $status = htmlspecialchars($selected_status);
-                                            $status_class = "";
-                                            if (stripos($status, 'released') !== false) {
-                                                $status_class = "status-released";
-                                            } elseif (stripos($status, 'releasing') !== false) {
-                                                $status_class = "status-for-releasing";
-                                            }
-                                            echo "<span class='status-badge $status_class'>$status</span>";
-                                            ?>
-                                        </span>
-                                    </div>
-                                    
-                                    <div class="detail-item">
-                                        <span class="detail-label">Actual Location</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_actual_location']); ?></span>
-                                    </div>
-                                    
-                                    <div class="detail-item">
-                                        <span class="detail-label">Accountable Person</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_accountable_person']); ?></span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="details-section">
-                                <h4 class="section-title">Financial Information</h4>
-                                <div class="property-details">
-                                    <div class="detail-item">
-                                        <span class="detail-label">Value</span>
-                                        <span class="detail-value value-highlight">₱<?php echo !empty($data['property_value']) ? number_format($data['property_value'], 2) : '0.00'; ?></span>
-                                    </div>
-                                    
-                                    <div class="detail-item">
-                                        <span class="detail-label">Fund</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_fund']); ?></span>
-                                    </div>
-                                    
-                                    <div class="detail-item">
-                                        <span class="detail-label">Year Purchased</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_year_purchased']); ?></span>
-                                    </div>
-                                    
-                                    <div class="detail-item">
-                                        <span class="detail-label">Acquisition Date</span>
-                                        <span class="detail-value"><?php echo htmlspecialchars($data['property_acquisition_date']); ?></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Property Tag:</span>
+                        <span class="detail-value"><strong><?php echo htmlspecialchars($property_data['property_tag']); ?></strong></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Item Name:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_item']); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Description:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_description']); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Serial Number:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_serial_number'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Value:</span>
+                        <span class="detail-value">₱<?php 
+                            $propertyValue = $property_data['property_value'] ?? '0';
+                            $cleanedValue = str_replace([',', ' '], '', $propertyValue);
+                            if (is_numeric($cleanedValue)) {
+                                echo number_format((float)$cleanedValue, 2); 
+                            } else {
+                                echo htmlspecialchars($propertyValue);
+                            }
+                        ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Acquisition Date:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_acquisition_date'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Accountable Person:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_accountable_person'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_status'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Remarks:</span>
+                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_remarks'] ?? 'N/A'); ?></span>
                     </div>
                 </div>
-                
+
                 <div class="qr-section">
-                    <div class="qr-header">
-                        <h3>QR Code</h3>
-                        <p>Scan this QR code to view property details</p>
+                    <h3>Track This Property</h3>
+                    <div class="qr-code">
+                        <iframe frameborder='0' id='qrcode' src='' width='200' height='200'></iframe>
                     </div>
-                    <div class="qr-code-container">
-                        <div class="qr-code">
-                            <iframe frameborder='0' id='qrcode' src='' width='200' height='200'></iframe>
-                        </div>
-                        <div class="qr-actions">
-                            <button class="btn btn-primary btn-sm" onclick="window.print()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="6,9 6,2 18,2 18,9"/>
-                                    <path d="M6,18H4a2,2,0,0,1-2-2V8a2,2,0,0,1,2-2H16a2,2,0,0,1,2,2v2"/>
-                                    <path d="M18,14h1a2,2,0,0,1,2,2v4a2,2,0,0,1-2,2H6a2,2,0,0,1-2-2V20a2,2,0,0,1,2-2h1"/>
-                                    <rect x="6" y="14" width="12" height="8"/>
-                                </svg>
-                                Print QR Code
-                            </button>
-                        </div>
+                    <div class="property-tag-display">
+                        <?php echo htmlspecialchars($property_data['property_tag']); ?>
                     </div>
-                </div>
-                
-                <?php if ($show_release_section): ?>
-                <div class="property-card release-card" style="margin-top: 2rem;">
-                    <div class="property-header release-header">
-                        <div class="property-header-content">
-                            <div class="property-icon release-icon">
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                    <polyline points="7,10 12,15 17,10"/>
-                                    <line x1="12" y1="15" x2="12" y2="3"/>
-                                </svg>
-                            </div>
-                            <div class="property-title">
-                                <h3>Release Property</h3>
-                                <p>Process property release</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="property-body">
-                        <form action='receiveadd.php' method='POST'>
-                            <div style="text-align: center; padding: 2rem;">
-                                <label for="ename" style="font-size: 1.2rem; font-weight: 600;">...</label>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                <?php endif; ?>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <div class="property-card">
-                <div class="property-body" style="text-align: center; padding: 3rem;">
-                    <h3>Property Not Found</h3>
-                    <p style="color: var(--gray-500); margin-top: 1rem;">
-                        No property found with tag: <strong><?php echo htmlspecialchars($ReferenceID); ?></strong>
+                    <p style="color: #6b7280; font-size: 0.9rem; margin-top: 0.5rem;">
+                        Scan QR code to track this property
                     </p>
-                    <a href="index.php" class="btn btn-primary" style="margin-top: 1rem;">← Back to Property List</a>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <form action='printqrnow.php' method='POST' target='_blank' style="display: inline;">
+                    <button type='submit' name='RefID' value='<?php echo $property_data["property_tag"]; ?>' class="btn btn-success">
+                        🖨️ Print QR Code
+                    </button>
+                </form>
+                <a href="index.php" class="btn btn-primary">← Back to Property List</a>
+            </div>
+
+            <input type="hidden" id="qr" value="<?php echo "http://campus.psau.edu.ph/property/propertydocument.php?filtertext=" . urlencode($property_data['property_tag']); ?>">
+
+        <?php else: ?>
+            <div class="not-found">
+                <h2>Property Not Found</h2>
+                <p>No property found with tag: <strong><?php echo htmlspecialchars($property_tag); ?></strong></p>
+                <p>Please check the property tag and try again.</p>
+                <div style="margin-top: 2rem;">
+                    <a href="index.php" class="btn btn-primary">← Back to Property List</a>
                 </div>
             </div>
         <?php endif; ?>
-        
-        <input type="hidden" id="qr" value="<?php echo $ReferenceID; ?>">
     </div>
 
-    <footer style="text-align: center; padding: 2rem; color: var(--gray-500); margin-top: 3rem;">
-        <p>&copy; <?php echo date('Y'); ?> PAMPANGA STATE AGRICULTURAL UNIVERSITY - Property Management System</p>
-    </footer>
-
     <script>
-    function UpdateQRCode(val){
-        document.getElementById("qrcode").setAttribute("src","https://api.mimfa.net/qrcode?value="+encodeURIComponent(val)+"&as=value");
+    function UpdateQRCode(val, elementId) {
+        document.getElementById(elementId).setAttribute("src", "https://api.mimfa.net/qrcode?value=" + encodeURIComponent(val) + "&as=value");
     }
-    document.addEventListener("DOMContentLoaded", function(){
-        UpdateQRCode(document.getElementById("qr").value);
+    
+    document.addEventListener("DOMContentLoaded", function() {
+        const qrValue = document.getElementById("qr");
+        if (qrValue) {
+            UpdateQRCode(qrValue.value, 'qrcode');
+        }
     });
     </script>
 </body>
