@@ -93,6 +93,159 @@ if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     }
 }
 
+
+// ── Ensure sub_offices table exists ──
+$conn->query("CREATE TABLE IF NOT EXISTS sub_offices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    office_id INT NOT NULL,
+    sub_name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE CASCADE
+)");
+
+// ── Seed offices data if offices table is empty ──
+$officeCount = $conn->query("SELECT COUNT(*) as cnt FROM offices")->fetch_assoc()['cnt'];
+if ($officeCount == 0) {
+    $seedData = [
+        "Office of the President" => [
+            "University President","University Secretary","Head, Legal Unit",
+            "Director, Internal Audit Unit","Head, Security Unit",
+            "Director, Office of Gender and Development",
+            "Director, Office of Public Affairs and International Linkages",
+            "Head, External Affairs Unit","Head, International Affairs Unit",
+            "Head, Strategic Communication Unit","Head, Information Unit",
+            "Director, Office of Institutional Quality Assurance",
+            "Head, Institutional and Program Accreditation Unit",
+            "Head, Government-Initiated Accreditation and International Assessment Unit",
+            "Head, Monitoring and Quality Analytics Unit","Head, Quality Management System Unit"
+        ],
+        "Office of the Vice President for Academic Affairs" => [
+            "Vice President for Academic Affairs",
+            "Dean, College of Agriculture Systems and Technology",
+            "Dean, College of Arts and Sciences",
+            "Dean, College of Business, Economics and Entrepreneurship",
+            "Dean, College of Education","Dean, College of Engineering and Computer Studies",
+            "Dean, College of Forestry and Agroforestry","Dean, College of Veterinary Medicine",
+            "Dean, Graduate School","Director, Office of Admissions and Registration",
+            "Director, Office of Student Affairs and Services",
+            "Director, Office of Sports Development","Director, Office of Cultural and Performing Arts",
+            "Director, Office of Guidance and Testing",
+            "Director, Office of Alumni Relations and Placement",
+            "OIC Director, Office of Library Services and Museum",
+            "Chief Coordinator, National Service Training Program Unit",
+            "Chief Coordinator, Special Academic Programs and Services Unit",
+            "University Registrar","Assistant Registrar"
+        ],
+        "Office of the Vice President for Research, Innovation, Extension and Training" => [
+            "Vice President for Research, Innovation, Extension and Training",
+            "Director, Office of Research and Development",
+            "Assistant Director, Office of Research and Development",
+            "Head, Alias RDE Center","Head, Bamboo and Rattan RDE Center","Head, Tamarind RDE Center",
+            "Director, Office of Innovation",
+            "Head, Intellectual Property and Technology Business Management Unit",
+            "Head, Technology Business Incubation Unit",
+            "Director, Office of Extension and Training",
+            "Assistant Director, Office of Extension and Training",
+            "Head, Technical Vocational Education and Training (TVET) Center",
+            "Head, Community Radio Station","Head, Satellite Cattle Breeding Center"
+        ],
+        "Office of the Vice President for Administration and Finance" => [
+            "Acting Vice President for Administration and Finance & Concurrent Board Secretary",
+            "Director, Office of Administrative Services",
+            "Supervising Administrative Officer, Administrative Services",
+            "Head, Cash Unit","Head, Human Resource Management Unit",
+            "Head, Records Unit","Head, Procurement Unit",
+            "Head, Supply and Property Management Unit",
+            "Director, Office of Financial Services",
+            "Supervising Administrative Officer, Financial Services",
+            "Head, Accounting Unit","Head, Budget Unit",
+            "Director, Office of General and Auxiliary Services",
+            "Head, Faculty, Staff and Student Housing Unit","Head, Health Unit",
+            "Head, Motorpool and Agri-Machinery Unit",
+            "Head, Ground and Physical Plant Improvement Unit",
+            "Head, Project Monitoring Committee"
+        ],
+        "Office of the Vice President for Planning and Resource Generation" => [
+            "Vice President for Planning and Resource Generation",
+            "Director, Office of Planning, Project Development and Monitoring",
+            "Head, Planning Unit","Head, Project Development, Management and Monitoring Unit",
+            "Head, Land and Agroecological Resource Management Unit",
+            "Head, Disaster Risk Reduction and Management Unit",
+            "Head, Management Information System Unit",
+            "Director, Office of Business Affairs","Assistant Director, Office of Business Affairs",
+            "Head, Agribusiness Unit","Head, Non-Agribusiness Unit","University Economist"
+        ],
+        "Other Officials" => [
+            "President, PSAU Faculty Union","President, PSAU Non-Academic Staff Association",
+            "President, Supreme Student Council","President, PSAU Federation of Alumni Associations"
+        ]
+    ];
+    foreach ($seedData as $officeName => $subs) {
+        $stmt = $conn->prepare("INSERT INTO offices (office_name) VALUES (?)");
+        $stmt->bind_param("s", $officeName);
+        $stmt->execute();
+        $officeId = $stmt->insert_id;
+        $stmt->close();
+        foreach ($subs as $sub) {
+            $stmt2 = $conn->prepare("INSERT INTO sub_offices (office_id, sub_name) VALUES (?, ?)");
+            $stmt2->bind_param("is", $officeId, $sub);
+            $stmt2->execute();
+            $stmt2->close();
+        }
+    }
+}
+
+// ── Handle Add Office ──
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['create_office'])) {
+    $office_name = trim($_POST['office_name'] ?? '');
+    $sub_names   = array_filter(array_map('trim', $_POST['sub_names'] ?? []));
+    if (!empty($office_name)) {
+        $stmt = $conn->prepare("INSERT INTO offices (office_name) VALUES (?)");
+        $stmt->bind_param("s", $office_name);
+        if ($stmt->execute()) {
+            $new_office_id = $stmt->insert_id;
+            foreach ($sub_names as $sub) {
+                $s2 = $conn->prepare("INSERT INTO sub_offices (office_id, sub_name) VALUES (?, ?)");
+                $s2->bind_param("is", $new_office_id, $sub);
+                $s2->execute(); $s2->close();
+            }
+            $success_message = "Office added successfully!";
+        } else { $error_message = "Error adding office: " . $stmt->error; }
+        $stmt->close();
+    }
+}
+
+// ── Handle Edit Office ──
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_office'])) {
+    $edit_office_id   = (int)$_POST['edit_office_id'];
+    $edit_office_name = trim($_POST['edit_office_name'] ?? '');
+    $edit_sub_names   = array_filter(array_map('trim', $_POST['edit_sub_names'] ?? []));
+    if (!empty($edit_office_name)) {
+        $stmt = $conn->prepare("UPDATE offices SET office_name = ? WHERE id = ?");
+        $stmt->bind_param("si", $edit_office_name, $edit_office_id);
+        $stmt->execute(); $stmt->close();
+        $conn->query("DELETE FROM sub_offices WHERE office_id = $edit_office_id");
+        foreach ($edit_sub_names as $sub) {
+            $s2 = $conn->prepare("INSERT INTO sub_offices (office_id, sub_name) VALUES (?, ?)");
+            $s2->bind_param("is", $edit_office_id, $sub);
+            $s2->execute(); $s2->close();
+        }
+        $success_message = "Office updated successfully!";
+    }
+}
+
+// ── Handle Delete Office ──
+if (isset($_GET['delete_office']) && is_numeric($_GET['delete_office'])) {
+    $conn->query("DELETE FROM offices WHERE id = " . (int)$_GET['delete_office']);
+    $success_message = "Office deleted successfully!";
+}
+
+// ── Fetch all offices with their sub-offices ──
+$offices_result = $conn->query("SELECT o.id, o.office_name, o.created_at,
+    GROUP_CONCAT(s.sub_name ORDER BY s.id SEPARATOR '||') AS sub_offices
+    FROM offices o LEFT JOIN sub_offices s ON o.id = s.office_id
+    GROUP BY o.id ORDER BY o.id ASC");
+
 // Get all users
 $users = $conn->query("SELECT id, username, full_name, email, department, members, role, created_at FROM users ORDER BY created_at DESC");
 ?>
@@ -432,6 +585,89 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
             border-color: #fecaca;
         }
         
+        /* Confirmation Dialog */
+        .confirm-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .confirm-dialog.show {
+            display: flex;
+        }
+        
+        .confirm-dialog-content {
+            background: var(--psau-white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .confirm-dialog-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #dc2626;
+        }
+        
+        .confirm-dialog-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--psau-gray-900);
+            margin-bottom: 0.5rem;
+        }
+        
+        .confirm-dialog-message {
+            color: var(--psau-gray-600);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+        
+        .confirm-dialog-buttons {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+        }
+        
+        .btn-confirm {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 0.625rem 1.5rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+        
+        .btn-confirm:hover {
+            background: #b91c1c;
+        }
+        
+        .btn-cancel {
+            background: var(--psau-gray-200);
+            color: var(--psau-gray-700);
+            border: none;
+            padding: 0.625rem 1.5rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+        
+        .btn-cancel:hover {
+            background: var(--psau-gray-300);
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .page-container {
@@ -512,18 +748,23 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
             <div class="header-content">
                 <div>
                     <h1 class="page-title">User Manager</h1>
-                    <p class="page-subtitle">Manage system users and their access levels</p>
+                    <p class="page-subtitle">Manage system users, offices and their access levels</p>
                 </div>
-                <div class="header-actions">
-                    <button class="btn btn-primary" onclick="showCreateModal()">
-                        + Create User
-                    </button>
+                <div class="header-actions" id="headerActions">
+                    <button class="btn btn-primary" id="btnCreateUser" onclick="showCreateModal()">+ Create User</button>
+                    <button class="btn btn-primary" id="btnCreateOffice" onclick="showOfficeModal()" style="display:none;background:#117a65;">+ Add Office</button>
                 </div>
             </div>
         </div>
-        
+
+        <!-- Tab Nav -->
+        <div style="display:flex;gap:4px;margin-bottom:0;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--psau-gray-200);border-bottom:none;overflow:hidden;">
+            <button id="tab-users" onclick="switchTab('users')" style="padding:12px 28px;border:none;border-bottom:3px solid var(--psau-primary);background:#fff;font-weight:600;color:var(--psau-primary);cursor:pointer;font-size:0.9rem;">👥 Users</button>
+            <button id="tab-offices" onclick="switchTab('offices')" style="padding:12px 28px;border:none;border-bottom:3px solid transparent;background:#fff;font-weight:500;color:var(--psau-gray-500);cursor:pointer;font-size:0.9rem;">🏢 Offices</button>
+        </div>
+
         <!-- Main Content -->
-        <div class="main-content">
+        <div class="main-content" style="border-radius:0 8px 8px 8px;">
             <div class="content-body">
                 <?php if (isset($success_message)): ?>
                     <div class="alert alert-success">
@@ -537,6 +778,8 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                     </div>
                 <?php endif; ?>
                 
+                <!-- ── USERS TAB ── -->
+                <div id="section-users">
                 <?php if ($users->num_rows > 0): ?>
                     <div class="table-responsive">
                         <table class="users-table">
@@ -603,7 +846,128 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
                         </button>
                     </div>
                 <?php endif; ?>
+                </div><!-- end section-users -->
+
+                <!-- ── OFFICES TAB ── -->
+                <div id="section-offices" style="display:none;">
+                    <?php if ($offices_result && $offices_result->num_rows > 0): ?>
+                    <div class="table-responsive">
+                        <table class="users-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:30%">Main Office</th>
+                                    <th>Sub-Offices / Units</th>
+                                    <th style="width:130px;">Created</th>
+                                    <th style="width:90px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php while ($off = $offices_result->fetch_assoc()):
+                                $subs = $off['sub_offices'] ? explode('||', $off['sub_offices']) : [];
+                            ?>
+                                <tr>
+                                    <td><strong style="color:var(--psau-primary);"><?= htmlspecialchars($off['office_name']) ?></strong></td>
+                                    <td>
+                                        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                                        <?php foreach ($subs as $sub): ?>
+                                            <span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:9999px;padding:2px 10px;font-size:0.75rem;">
+                                                <?= htmlspecialchars($sub) ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                        <?php if (empty($subs)): ?><span style="color:#aaa;font-size:0.8rem;">None</span><?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td><?= date('M d, Y', strtotime($off['created_at'])) ?></td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon edit" onclick="editOffice(<?= $off['id'] ?>, <?= htmlspecialchars(json_encode($off['office_name'])) ?>, <?= htmlspecialchars(json_encode($subs)) ?>)" title="Edit Office">✏️</button>
+                                            <button class="btn-icon delete" onclick="confirmDeleteOffice(<?= $off['id'] ?>, '<?= htmlspecialchars($off['office_name']) ?>')" title="Delete Office">🗑️</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🏢</div>
+                            <div class="empty-state-title">No offices found</div>
+                            <div class="empty-state-text">Add your first office to get started.</div>
+                            <button class="btn btn-primary" onclick="showOfficeModal()">+ Add Office</button>
+                        </div>
+                    <?php endif; ?>
+                </div><!-- end section-offices -->
+
             </div>
+        </div>
+    </div>
+
+    <!-- ── Add Office Modal ── -->
+    <div class="modal" id="officeModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Add Office</h2>
+                <button class="modal-close" onclick="hideOfficeModal()">&times;</button>
+            </div>
+            <form method="post" autocomplete="off">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Main Office Name *</label>
+                        <input type="text" name="office_name" class="form-control" required placeholder="e.g. Office of the President">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sub-Offices / Units</label>
+                        <div id="subOfficeList" style="display:flex;flex-direction:column;gap:8px;">
+                            <div class="sub-office-row" style="display:flex;gap:6px;align-items:center;">
+                                <input type="text" name="sub_names[]" class="form-control" placeholder="e.g. University President">
+                                <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>
+                            </div>
+                            <div class="sub-office-row" style="display:flex;gap:6px;align-items:center;">
+                                <input type="text" name="sub_names[]" class="form-control" placeholder="e.g. University Secretary">
+                                <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>
+                            </div>
+                            <div class="sub-office-row" style="display:flex;gap:6px;align-items:center;">
+                                <input type="text" name="sub_names[]" class="form-control" placeholder="e.g. Head, Legal Unit">
+                                <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="addSubOfficeRow('subOfficeList','sub_names[]')" style="margin-top:10px;background:#f0fdf4;border:1px dashed #86efac;color:#166534;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:0.85rem;width:100%;">+ Add Sub-Office</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="hideOfficeModal()">Cancel</button>
+                    <button type="submit" name="create_office" class="btn btn-primary" style="background:#117a65;">Save Office</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Edit Office Modal ── -->
+    <div class="modal" id="editOfficeModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Office</h2>
+                <button class="modal-close" onclick="hideEditOfficeModal()">&times;</button>
+            </div>
+            <form method="post" autocomplete="off">
+                <input type="hidden" id="edit_office_id" name="edit_office_id">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Main Office Name *</label>
+                        <input type="text" id="edit_office_name" name="edit_office_name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sub-Offices / Units</label>
+                        <div id="editSubOfficeList" style="display:flex;flex-direction:column;gap:8px;"></div>
+                        <button type="button" onclick="addSubOfficeRow('editSubOfficeList','edit_sub_names[]')" style="margin-top:10px;background:#f0fdf4;border:1px dashed #86efac;color:#166534;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:0.85rem;width:100%;">+ Add Sub-Office</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="hideEditOfficeModal()">Cancel</button>
+                    <button type="submit" name="edit_office" class="btn btn-primary" style="background:#117a65;">Update Office</button>
+                </div>
+            </form>
         </div>
     </div>
     
@@ -736,8 +1100,134 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
         </div>
     </div>
     
+    <!-- Delete Confirmation Dialog -->
+    <div class="confirm-dialog" id="deleteDialog">
+        <div class="confirm-dialog-content">
+            <div class="confirm-dialog-icon">⚠️</div>
+            <h3 class="confirm-dialog-title">Confirm Deletion</h3>
+            <p class="confirm-dialog-message" id="deleteMessage">Are you sure you want to delete this user? This action cannot be undone.</p>
+            <div class="confirm-dialog-buttons">
+                <button class="btn-cancel" id="deleteCancelBtn" onclick="hideDeleteDialog()">Cancel</button>
+                <button class="btn-confirm" id="deleteYesBtn">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Dialog for Offices -->
+    <div class="confirm-dialog" id="deleteOfficeDialog">
+        <div class="confirm-dialog-content">
+            <div class="confirm-dialog-icon">⚠️</div>
+            <h3 class="confirm-dialog-title">Confirm Deletion</h3>
+            <p class="confirm-dialog-message" id="deleteOfficeMessage">Are you sure you want to delete this office? This action cannot be undone.</p>
+            <div class="confirm-dialog-buttons">
+                <button class="btn-cancel" id="deleteOfficeCancelBtn" onclick="hideDeleteOfficeDialog()">Cancel</button>
+                <button class="btn-confirm" id="deleteOfficeYesBtn">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
-        // Modal functions
+        // ── Tab switching ──
+        function switchTab(tab) {
+            const isUsers = tab === 'users';
+            document.getElementById('section-users').style.display   = isUsers ? '' : 'none';
+            document.getElementById('section-offices').style.display = isUsers ? 'none' : '';
+            document.getElementById('tab-users').style.borderBottomColor   = isUsers ? 'var(--psau-primary)' : 'transparent';
+            document.getElementById('tab-offices').style.borderBottomColor = isUsers ? 'transparent' : '#117a65';
+            document.getElementById('tab-users').style.color   = isUsers ? 'var(--psau-primary)' : 'var(--psau-gray-500)';
+            document.getElementById('tab-offices').style.color = isUsers ? 'var(--psau-gray-500)' : '#117a65';
+            document.getElementById('tab-users').style.fontWeight   = isUsers ? '600' : '500';
+            document.getElementById('tab-offices').style.fontWeight = isUsers ? '500' : '600';
+            document.getElementById('btnCreateUser').style.display   = isUsers ? '' : 'none';
+            document.getElementById('btnCreateOffice').style.display = isUsers ? 'none' : '';
+        }
+
+        // ── Office modal helpers ──
+        function addSubOfficeRow(listId, inputName) {
+            const list = document.getElementById(listId);
+            const div = document.createElement('div');
+            div.className = 'sub-office-row';
+            div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+            div.innerHTML = `<input type="text" name="${inputName}" class="form-control" placeholder="Sub-office / unit name">
+                <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>`;
+            list.appendChild(div);
+        }
+
+        function removeSubRow(btn) {
+            const row = btn.closest('.sub-office-row');
+            const list = row.parentElement;
+            if (list.querySelectorAll('.sub-office-row').length > 1) {
+                row.remove();
+            } else {
+                row.querySelector('input').value = '';
+            }
+        }
+
+        function showOfficeModal() {
+            document.getElementById('officeModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function hideOfficeModal() {
+            document.getElementById('officeModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        function showEditOfficeModal() {
+            document.getElementById('editOfficeModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function hideEditOfficeModal() {
+            document.getElementById('editOfficeModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        function editOffice(id, name, subs) {
+            document.getElementById('edit_office_id').value = id;
+            document.getElementById('edit_office_name').value = name;
+            const list = document.getElementById('editSubOfficeList');
+            list.innerHTML = '';
+            const subsArr = Array.isArray(subs) ? subs : [];
+            const toShow = subsArr.length > 0 ? subsArr : ['','',''];
+            toShow.forEach(sub => {
+                const div = document.createElement('div');
+                div.className = 'sub-office-row';
+                div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+                div.innerHTML = `<input type="text" name="edit_sub_names[]" class="form-control" value="${sub.replace(/"/g,'&quot;')}" placeholder="Sub-office / unit name">
+                    <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>`;
+                list.appendChild(div);
+            });
+            showEditOfficeModal();
+        }
+        function confirmDeleteOffice(id, name) {
+            showDeleteOfficeDialog(id, name);
+        }
+        
+        function showDeleteOfficeDialog(id, name) {
+            const dialog = document.getElementById('deleteOfficeDialog');
+            const messageElement = document.getElementById('deleteOfficeMessage');
+            messageElement.textContent = `Are you sure you want to delete office "${name}" and all its sub-offices? This action cannot be undone.`;
+            
+            // Set up the Yes button to perform the deletion
+            const yesBtn = document.getElementById('deleteOfficeYesBtn');
+            yesBtn.onclick = function() {
+                hideDeleteOfficeDialog();
+                // Perform deletion via GET request
+                window.location.href = `?delete_office=${id}`;
+            };
+            
+            dialog.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function hideDeleteOfficeDialog() {
+            const dialog = document.getElementById('deleteOfficeDialog');
+            dialog.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // Close office modals on outside click / Escape
+        document.getElementById('officeModal').addEventListener('click', function(e) { if (e.target===this) hideOfficeModal(); });
+        document.getElementById('editOfficeModal').addEventListener('click', function(e) { if (e.target===this) hideEditOfficeModal(); });
+
+        // ── User Modal functions ──
         function showCreateModal() {
             document.getElementById('createModal').classList.add('show');
             document.body.style.overflow = 'hidden';
@@ -752,9 +1242,7 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
         
         // Delete confirmation
         function confirmDelete(userId, userName) {
-            if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
-                window.location.href = `?delete=${userId}`;
-            }
+            showDeleteDialog(userId, userName);
         }
         
         // Edit user function
@@ -810,6 +1298,30 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
             document.querySelector('#editModal form').reset();
         }
         
+        // Delete confirmation dialog
+        function showDeleteDialog(userId, userName) {
+            const dialog = document.getElementById('deleteDialog');
+            const messageElement = document.getElementById('deleteMessage');
+            messageElement.textContent = `Are you sure you want to delete user "${userName}"? This action cannot be undone.`;
+            
+            // Set up the Yes button to perform the deletion
+            const yesBtn = document.getElementById('deleteYesBtn');
+            yesBtn.onclick = function() {
+                hideDeleteDialog();
+                // Perform deletion via GET request
+                window.location.href = `?delete=${userId}`;
+            };
+            
+            dialog.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function hideDeleteDialog() {
+            const dialog = document.getElementById('deleteDialog');
+            dialog.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
         // Close modal on outside click
         document.getElementById('createModal').addEventListener('click', function(event) {
             if (event.target === this) {
@@ -823,11 +1335,27 @@ $users = $conn->query("SELECT id, username, full_name, email, department, member
             }
         });
         
+        document.getElementById('deleteDialog').addEventListener('click', function(event) {
+            if (event.target === this) {
+                hideDeleteDialog();
+            }
+        });
+        
+        document.getElementById('deleteOfficeDialog').addEventListener('click', function(event) {
+            if (event.target === this) {
+                hideDeleteOfficeDialog();
+            }
+        });
+        
         // Close modal on Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 hideCreateModal();
                 hideEditModal();
+                hideOfficeModal();
+                hideEditOfficeModal();
+                hideDeleteDialog();
+                hideDeleteOfficeDialog();
             }
         });
 
