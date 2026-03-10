@@ -291,26 +291,28 @@ body {
 .table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.875rem;
-    table-layout: auto;
+    font-size: 0.8rem;
+    table-layout: fixed;
 }
 
 .table th {
     background: var(--primary-color);
     color: white;
-    padding: 1rem;
+    padding: 0.75rem 0.5rem;
     text-align: left;
     font-weight: 600;
     letter-spacing: 0.025em;
     white-space: nowrap;
     border-right: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.75rem;
 }
 
 .table td {
-    padding: 0.75rem 1rem;
+    padding: 0.5rem;
     border-bottom: 1px solid var(--gray-300);
     border-top: 1px solid var(--gray-300);
     vertical-align: middle;
+    word-wrap: break-word;
 }
 
 .table tbody tr:hover {

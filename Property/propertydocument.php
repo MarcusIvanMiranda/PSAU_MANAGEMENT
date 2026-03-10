@@ -41,6 +41,64 @@ if (!empty($property_tag)) {
     <link rel="icon" href="PSAU.ico">
     <link rel="stylesheet" href="style.css">
     <style>
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 300px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .truncate-text {
+            color: #0066cc;
+            text-decoration: underline dotted;
+        }
+        
+        .truncate-text:hover {
+            color: #004499;
+        }
+        
         .document-container {
             max-width: 1000px;
             margin: 2rem auto;
@@ -121,6 +179,10 @@ if (!empty($property_tag)) {
             line-height: 1.5;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            word-break: break-word;
+            white-space: pre-wrap;
+            max-width: 100%;
+            box-sizing: border-box;
         }
         
         .qr-section {
@@ -280,7 +342,17 @@ if (!empty($property_tag)) {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Description:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_description']); ?></span>
+                        <span class="detail-value"><?php 
+                            $description = htmlspecialchars($property_data['property_description'] ?? '');
+                            if (strlen($description) > 100) {
+                                echo '<div class="tooltip">
+                                    <span class="truncate-text">' . substr($description, 0, 100) . '...</span>
+                                    <span class="tooltiptext">' . $description . '</span>
+                                </div>';
+                            } else {
+                                echo $description;
+                            }
+                        ?></span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Serial Number:</span>
@@ -312,7 +384,17 @@ if (!empty($property_tag)) {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Remarks:</span>
-                        <span class="detail-value"><?php echo htmlspecialchars($property_data['property_remarks'] ?? 'N/A'); ?></span>
+                        <span class="detail-value"><?php 
+                            $remarks = htmlspecialchars($property_data['property_remarks'] ?? 'N/A');
+                            if ($remarks !== 'N/A' && strlen($remarks) > 50) {
+                                echo '<div class="tooltip">
+                                    <span class="truncate-text">' . substr($remarks, 0, 50) . '...</span>
+                                    <span class="tooltiptext">' . $remarks . '</span>
+                                </div>';
+                            } else {
+                                echo $remarks;
+                            }
+                        ?></span>
                     </div>
                 </div>
 
