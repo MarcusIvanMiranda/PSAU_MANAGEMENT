@@ -679,9 +679,9 @@ $total_pages = ceil($row["total"] / $results_per_page);
                                 <td><?php echo htmlspecialchars($row["property_item"]); ?></td>
                                 <td><?php 
                                     $description = htmlspecialchars($row["property_description"] ?? '');
-                                    if (strlen($description) > 50) {
+                                    if (strlen($description) > 20) {
                                         echo '<div class="tooltip">
-                                            <span class="truncate-text">' . substr($description, 0, 50) . '...</span>
+                                            <span class="truncate-text">' . substr($description, 0, 20) . '...</span>
                                             <span class="tooltiptext">' . $description . '</span>
                                         </div>';
                                     } else {
@@ -712,9 +712,9 @@ $total_pages = ceil($row["total"] / $results_per_page);
                                 <td><?php echo htmlspecialchars($row["property_status"] ?? ''); ?></td>
                                 <td><?php 
                                     $remarks = htmlspecialchars($row["property_remarks"] ?? '');
-                                    if (strlen($remarks) > 30) {
+                                    if (strlen($remarks) > 20) {
                                         echo '<div class="tooltip">
-                                            <span class="truncate-text">' . substr($remarks, 0, 30) . '...</span>
+                                            <span class="truncate-text">' . substr($remarks, 0, 20) . '...</span>
                                             <span class="tooltiptext">' . $remarks . '</span>
                                         </div>';
                                     } else {
