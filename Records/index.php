@@ -505,6 +505,7 @@ $conn = new mysqli($servername, $username, $password, $dbname);
         .icon-dashboard::before { content: "🏠"; }
         .icon-plus::before { content: "📝"; }
         .icon-globe::before { content: "🌍"; }
+        .icon-archive::before { content: "📋"; }
         .icon-clipboard::before { content: "📋"; }
         .icon-building::before { content: "🏢"; }
         .icon-outbox::before { content: "⬆️"; }
@@ -626,6 +627,12 @@ $conn = new mysqli($servername, $username, $password, $dbname);
                         Released
                     </button>
                 </div>
+                <div class="nav-item">
+                    <button class="nav-link" onclick="loadPage('NAP/index.php', this)">
+                        <span class="nav-icon icon-archive"></span>
+                        NAP Records
+                    </button>
+                </div>
                 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
                 <div class="nav-item">
                     <button class="nav-link" onclick="loadPage('usermanager.php', this)">
@@ -727,6 +734,7 @@ $conn = new mysqli($servername, $username, $password, $dbname);
                 'viewgrid.php': 'For Releasing',
                 'adddocument.php': 'Register Document',
                 'viewdelivered.php': 'Released Documents',
+                'NAP/index.php': 'NAP Records',
                 'usermanager.php': 'User Manager',
                 'about.php': 'About',
             };
@@ -768,6 +776,7 @@ $conn = new mysqli($servername, $username, $password, $dbname);
                     'department_documents.php': 'My Office',
                     'manage_requests.php': 'Manage Requests',
                     'viewdelivered.php': 'Released Documents',
+                    'NAP/index.php': 'NAP Records',
                     'usermanager.php': 'User Manager',
                     'about.php': 'About',
                 };
