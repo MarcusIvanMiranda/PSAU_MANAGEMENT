@@ -24,7 +24,74 @@ if ($current_user['role'] !== 'admin') {
     exit();
 }
 
-// Handle user creation
+// Handle office creation
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['create_office'])) {
+    $office_name = trim($_POST['office_name']);
+    
+    if (!empty($office_name)) {
+        $sql = "INSERT INTO offices (office_name) VALUES (?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $office_name);
+        
+        if ($stmt->execute()) {
+            $office_success = "Office added successfully!";
+        } else {
+            if ($stmt->errno == 1062) {
+                $office_error = "Office already exists.";
+            } else {
+                $office_error = "Error adding office: " . $stmt->error;
+            }
+        }
+    } else {
+        $office_error = "Office name is required.";
+    }
+}
+
+// Handle office deletion
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_office'])) {
+    $office_id = $_POST['delete_office_id'];
+    
+    $sql = "DELETE FROM offices WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $office_id);
+    
+    if ($stmt->execute()) {
+        $office_success = "Office deleted successfully!";
+    } else {
+        $office_error = "Error deleting office: " . $stmt->error;
+    }
+}
+
+// Create offices table if it doesn't exist
+$conn->query("CREATE TABLE IF NOT EXISTS offices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    office_name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)");
+
+// Insert default offices if table is empty
+$result = $conn->query("SELECT COUNT(*) as count FROM offices");
+$row = $result->fetch_assoc();
+if ($row['count'] == 0) {
+    $default_offices = [
+        'PROPERTY MANAGEMENT OFFICE',
+        'MIS UNIT',
+        'RECORD UNIT',
+        'HR'
+    ];
+    $stmt = $conn->prepare("INSERT INTO offices (office_name) VALUES (?)");
+    foreach ($default_offices as $office) {
+        $stmt->bind_param("s", $office);
+        $stmt->execute();
+    }
+}
+
+// Fetch all offices for dropdowns
+$offices_result = $conn->query("SELECT id, office_name FROM offices ORDER BY office_name ASC");
+$offices = [];
+while ($office = $offices_result->fetch_assoc()) {
+    $offices[] = $office;
+}
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['create_user'])) {
     $username = $_POST['username'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -96,6 +163,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_user'])) {
 
 // Fetch all users
 $users = $conn->query("SELECT id, username, full_name, email, office, members, role, created_at FROM property_users ORDER BY created_at DESC");
+$offices_result = $conn->query("SELECT id, office_name FROM offices ORDER BY office_name ASC");
+$offices = [];
+while ($office = $offices_result->fetch_assoc()) {
+    $offices[] = $office;
+}
 ?>
 
 <!DOCTYPE html>
@@ -501,7 +573,79 @@ $users = $conn->query("SELECT id, username, full_name, email, office, members, r
             background: var(--gray-100);
         }
 
-        /* Responsive */
+        /* Office Management Styles */
+        .office-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--gray-200);
+        }
+
+        .office-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .office-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .office-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            min-height: 60px;
+            box-sizing: border-box;
+        }
+
+        .office-name {
+            font-weight: 500;
+            color: var(--gray-700);
+            word-break: break-word;
+            line-height: 1.3;
+            flex: 1;
+            padding-right: 0.5rem;
+        }
+
+        .office-actions {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .btn-icon-sm {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .btn-icon-sm.delete {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .btn-icon-sm.delete:hover {
+            background: #fecaca;
+        }
+
+        .empty-offices {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-500);
+        }
         @media (max-width: 768px) {
             .page-container {
                 padding: 1rem;
@@ -631,6 +775,47 @@ $users = $conn->query("SELECT id, username, full_name, email, office, members, r
                         </button>
                     </div>
                 <?php endif; ?>
+                
+                <!-- Office Management Section -->
+                <div class="office-section">
+                    <div class="office-header">
+                        <h3 style="margin: 0; color: var(--gray-700);">Manage Offices</h3>
+                        <button type="button" class="btn btn-primary" onclick="showAddOfficeModal()">
+                            + Add Office
+                        </button>
+                    </div>
+                    
+                    <?php if (isset($office_success)): ?>
+                        <div class="alert alert-success">
+                            ✅ <?php echo htmlspecialchars($office_success); ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (isset($office_error)): ?>
+                        <div class="alert alert-error">
+                            ⚠️ <?php echo htmlspecialchars($office_error); ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (count($offices) > 0): ?>
+                        <div class="office-list">
+                            <?php foreach ($offices as $office): ?>
+                                <div class="office-item">
+                                    <span class="office-name"><?php echo htmlspecialchars($office['office_name']); ?></span>
+                                    <div class="office-actions">
+                                        <button type="button" class="btn-icon-sm delete" onclick="confirmDeleteOffice(<?php echo $office['id']; ?>, '<?php echo htmlspecialchars($office['office_name']); ?>')" title="Delete Office">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="empty-offices">
+                            No offices added yet. Click "Add Office" to create one.
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
@@ -669,10 +854,9 @@ $users = $conn->query("SELECT id, username, full_name, email, office, members, r
                             <label for="office" class="form-label">Office *</label>
                             <select id="office" name="office" class="form-control" required>
                                 <option value="">Select Office</option>
-                                <option value="PROPERTY MANAGEMENT OFFICE">PROPERTY MANAGEMENT OFFICE</option>
-                                <option value="MIS UNIT">MIS UNIT</option>
-                                <option value="RECORD UNIT">RECORD UNIT</option>
-                                <option value="HR">HR</option>
+                                <?php foreach ($offices as $office): ?>
+                                    <option value="<?php echo htmlspecialchars($office['office_name']); ?>"><?php echo htmlspecialchars($office['office_name']); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="form-group">
@@ -729,10 +913,9 @@ $users = $conn->query("SELECT id, username, full_name, email, office, members, r
                             <label for="edit_office" class="form-label">Office *</label>
                             <select id="edit_office" name="edit_office" class="form-control" required>
                                 <option value="">Select Office</option>
-                                <option value="PROPERTY MANAGEMENT OFFICE">PROPERTY MANAGEMENT OFFICE</option>
-                                <option value="MIS UNIT">MIS UNIT</option>
-                                <option value="RECORD UNIT">RECORD UNIT</option>
-                                <option value="HR">HR</option>
+                                <?php foreach ($offices as $office): ?>
+                                    <option value="<?php echo htmlspecialchars($office['office_name']); ?>"><?php echo htmlspecialchars($office['office_name']); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
@@ -757,6 +940,48 @@ $users = $conn->query("SELECT id, username, full_name, email, office, members, r
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="hideEditModal()">Cancel</button>
                     <button type="submit" name="edit_user" class="btn btn-primary">Update User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Office Modal -->
+    <div class="modal" id="addOfficeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add New Office</h2>
+                <button class="modal-close" onclick="hideAddOfficeModal()">&times;</button>
+            </div>
+            <form method="post" autocomplete="off">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="office_name" class="form-label">Office Name *</label>
+                        <input type="text" id="office_name" name="office_name" class="form-control" required placeholder="Enter office name">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="hideAddOfficeModal()">Cancel</button>
+                    <button type="submit" name="create_office" class="btn btn-primary">Add Office</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Office Confirmation Modal -->
+    <div class="modal" id="deleteOfficeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Confirm Delete Office</h2>
+                <button class="modal-close" onclick="hideDeleteOfficeModal()">&times;</button>
+            </div>
+            <form method="post">
+                <input type="hidden" id="delete_office_id" name="delete_office_id">
+                <div class="modal-body">
+                    <p>Are you sure you want to delete office <strong id="delete_office_name"></strong>? This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="hideDeleteOfficeModal()">Cancel</button>
+                    <button type="submit" name="delete_office" class="btn btn-primary" style="background: #dc2626;">Delete Office</button>
                 </div>
             </form>
         </div>
@@ -834,7 +1059,33 @@ $users = $conn->query("SELECT id, username, full_name, email, office, members, r
             showDeleteModal();
         }
 
-        // Close modals when clicking outside
+        // Office Modal Functions
+        function showAddOfficeModal() {
+            document.getElementById('addOfficeModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideAddOfficeModal() {
+            document.getElementById('addOfficeModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+            document.querySelector('#addOfficeModal form').reset();
+        }
+
+        function showDeleteOfficeModal() {
+            document.getElementById('deleteOfficeModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideDeleteOfficeModal() {
+            document.getElementById('deleteOfficeModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        function confirmDeleteOffice(id, name) {
+            document.getElementById('delete_office_id').value = id;
+            document.getElementById('delete_office_name').textContent = name;
+            showDeleteOfficeModal();
+        }
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.classList.remove('show');
