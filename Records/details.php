@@ -395,10 +395,10 @@ if ($result)
             </div>
 
             <div class='upload-section'>
-                <h2 class='section-title'>📁 Upload File</h2>
+                <h2 class='section-title'>📁 Upload PDF File</h2>
                 <form action='uploadfile.php' id='uform' name='uform' method='post' enctype='multipart/form-data' class='upload-form'>
                     <input id='serialno' name='serialno' hidden type='text' value='$ReferenceID'/>
-                    <input $hideme id='efile' name='efile' type='file' class='file-input'/>
+                    <input $hideme id='efile' name='efile' type='file' class='file-input' accept='.pdf'/>
                     <button $hideme type='submit' class='upload-btn'>📤 Upload File</button>
                 </form>
             </div>

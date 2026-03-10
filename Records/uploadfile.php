@@ -8,6 +8,15 @@ $target_dir = "./uploads/";
 $target_file = $target_dir . basename($_FILES["efile"]["name"]);
 $uploadOk = 1;
 $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
+
+// Check if file is a PDF
+if($imageFileType != "pdf") {
+    echo "<center><br><br><br><br>";
+    echo "Sorry, only PDF files are allowed.";
+    echo "</center>";
+    $uploadOk = 0;
+}
+
 date_default_timezone_set("Asia/Manila");
 $timehour=date("H");
 $timeminute=date("i");
