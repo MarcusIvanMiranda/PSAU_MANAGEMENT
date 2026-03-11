@@ -24,86 +24,189 @@ if ($current_user['role'] !== 'admin') {
     exit();
 }
 
-// Handle office creation
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['create_office'])) {
-    $office_name = trim($_POST['office_name']);
-    
-    if (!empty($office_name)) {
-        $sql = "INSERT INTO offices (office_name) VALUES (?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("s", $office_name);
-        
-        if ($stmt->execute()) {
-            $office_success = "Office added successfully!";
-        } else {
-            if ($stmt->errno == 1062) {
-                $office_error = "Office already exists.";
-            } else {
-                $office_error = "Error adding office: " . $stmt->error;
-            }
-        }
-    } else {
-        $office_error = "Office name is required.";
-    }
-}
-
-// Handle office deletion
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_office'])) {
-    $office_id = $_POST['delete_office_id'];
-    
-    $sql = "DELETE FROM offices WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $office_id);
-    
-    if ($stmt->execute()) {
-        $office_success = "Office deleted successfully!";
-    } else {
-        $office_error = "Error deleting office: " . $stmt->error;
-    }
-}
-
-// Create offices table if it doesn't exist
+// ── Ensure offices table exists with proper structure ──
 $conn->query("CREATE TABLE IF NOT EXISTS offices (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    office_name VARCHAR(100) NOT NULL UNIQUE,
+    office_name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )");
 
-// Insert default offices if table is empty
-$result = $conn->query("SELECT COUNT(*) as count FROM offices");
-$row = $result->fetch_assoc();
-if ($row['count'] == 0) {
-    $default_offices = [
-        'PROPERTY MANAGEMENT OFFICE',
-        'MIS UNIT',
-        'RECORD UNIT',
-        'HR'
-    ];
-    $stmt = $conn->prepare("INSERT INTO offices (office_name) VALUES (?)");
-    foreach ($default_offices as $office) {
-        $stmt->bind_param("s", $office);
-        $stmt->execute();
+// ── Ensure sub_offices table exists ──
+$conn->query("CREATE TABLE IF NOT EXISTS sub_offices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    office_id INT NOT NULL,
+    sub_name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (office_id) REFERENCES offices(id) ON DELETE CASCADE
+)");
+
+// ── Ensure property_users table has department column ──
+$result = $conn->query("SHOW COLUMNS FROM property_users LIKE 'department'");
+if ($result->num_rows == 0) {
+    // Check if office column exists and rename it to department
+    $office_check = $conn->query("SHOW COLUMNS FROM property_users LIKE 'office'");
+    if ($office_check->num_rows > 0) {
+        $conn->query("ALTER TABLE property_users CHANGE office department VARCHAR(255)");
+    } else {
+        $conn->query("ALTER TABLE property_users ADD COLUMN department VARCHAR(255) AFTER email");
     }
 }
 
-// Fetch all offices for dropdowns
-$offices_result = $conn->query("SELECT id, office_name FROM offices ORDER BY office_name ASC");
-$offices = [];
-while ($office = $offices_result->fetch_assoc()) {
-    $offices[] = $office;
+// ── Seed offices data if offices table is empty ──
+$officeCount = $conn->query("SELECT COUNT(*) as cnt FROM offices")->fetch_assoc()['cnt'];
+if ($officeCount == 0) {
+    $seedData = [
+        "Office of the President" => [
+            "University President","University Secretary","Head, Legal Unit",
+            "Director, Internal Audit Unit","Head, Security Unit",
+            "Director, Office of Gender and Development",
+            "Director, Office of Public Affairs and International Linkages",
+            "Head, External Affairs Unit","Head, International Affairs Unit",
+            "Head, Strategic Communication Unit","Head, Information Unit",
+            "Director, Office of Institutional Quality Assurance",
+            "Head, Institutional and Program Accreditation Unit",
+            "Head, Government-Initiated Accreditation and International Assessment Unit",
+            "Head, Monitoring and Quality Analytics Unit","Head, Quality Management System Unit"
+        ],
+        "Office of the Vice President for Academic Affairs" => [
+            "Vice President for Academic Affairs",
+            "Dean, College of Agriculture Systems and Technology",
+            "Dean, College of Arts and Sciences",
+            "Dean, College of Business, Economics and Entrepreneurship",
+            "Dean, College of Education","Dean, College of Engineering and Computer Studies",
+            "Dean, College of Forestry and Agroforestry","Dean, College of Veterinary Medicine",
+            "Dean, Graduate School","Director, Office of Admissions and Registration",
+            "Director, Office of Student Affairs and Services",
+            "Director, Office of Sports Development","Director, Office of Cultural and Performing Arts",
+            "Director, Office of Guidance and Testing",
+            "Director, Office of Alumni Relations and Placement",
+            "OIC Director, Office of Library Services and Museum",
+            "Chief Coordinator, National Service Training Program Unit",
+            "Chief Coordinator, Special Academic Programs and Services Unit",
+            "University Registrar","Assistant Registrar"
+        ],
+        "Office of the Vice President for Research, Innovation, Extension and Training" => [
+            "Vice President for Research, Innovation, Extension and Training",
+            "Director, Office of Research and Development",
+            "Assistant Director, Office of Research and Development",
+            "Head, Alias RDE Center","Head, Bamboo and Rattan RDE Center","Head, Tamarind RDE Center",
+            "Director, Office of Innovation",
+            "Head, Intellectual Property and Technology Business Management Unit",
+            "Head, Technology Business Incubation Unit",
+            "Director, Office of Extension and Training",
+            "Assistant Director, Office of Extension and Training",
+            "Head, Technical Vocational Education and Training (TVET) Center",
+            "Head, Community Radio Station","Head, Satellite Cattle Breeding Center"
+        ],
+        "Office of the Vice President for Administration and Finance" => [
+            "Acting Vice President for Administration and Finance & Concurrent Board Secretary",
+            "Director, Office of Administrative Services",
+            "Supervising Administrative Officer, Administrative Services",
+            "Head, Cash Unit","Head, Human Resource Management Unit",
+            "Head, Records Unit","Head, Procurement Unit",
+            "Head, Supply and Property Management Unit",
+            "Director, Office of Financial Services",
+            "Supervising Administrative Officer, Financial Services",
+            "Head, Accounting Unit","Head, Budget Unit",
+            "Director, Office of General and Auxiliary Services",
+            "Head, Faculty, Staff and Student Housing Unit","Head, Health Unit",
+            "Head, Motorpool and Agri-Machinery Unit",
+            "Head, Ground and Physical Plant Improvement Unit",
+            "Head, Project Monitoring Committee"
+        ],
+        "Office of the Vice President for Planning and Resource Generation" => [
+            "Vice President for Planning and Resource Generation",
+            "Director, Office of Planning, Project Development and Monitoring",
+            "Head, Planning Unit","Head, Project Development, Management and Monitoring Unit",
+            "Head, Land and Agroecological Resource Management Unit",
+            "Head, Disaster Risk Reduction and Management Unit",
+            "Head, Management Information System Unit",
+            "Director, Office of Business Affairs","Assistant Director, Office of Business Affairs",
+            "Head, Agribusiness Unit","Head, Non-Agribusiness Unit","University Economist"
+        ],
+        "Other Officials" => [
+            "President, PSAU Faculty Union","President, PSAU Non-Academic Staff Association",
+            "President, Supreme Student Council","President, PSAU Federation of Alumni Associations"
+        ]
+    ];
+    foreach ($seedData as $officeName => $subs) {
+        $stmt = $conn->prepare("INSERT INTO offices (office_name) VALUES (?)");
+        $stmt->bind_param("s", $officeName);
+        $stmt->execute();
+        $officeId = $stmt->insert_id;
+        $stmt->close();
+        foreach ($subs as $sub) {
+            $stmt2 = $conn->prepare("INSERT INTO sub_offices (office_id, sub_name) VALUES (?, ?)");
+            $stmt2->bind_param("is", $officeId, $sub);
+            $stmt2->execute();
+            $stmt2->close();
+        }
+    }
 }
+
+// ── Handle Add Office ──
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['create_office'])) {
+    $office_name = trim($_POST['office_name'] ?? '');
+    $sub_names   = array_filter(array_map('trim', $_POST['sub_names'] ?? []));
+    if (!empty($office_name)) {
+        $stmt = $conn->prepare("INSERT INTO offices (office_name) VALUES (?)");
+        $stmt->bind_param("s", $office_name);
+        if ($stmt->execute()) {
+            $new_office_id = $stmt->insert_id;
+            foreach ($sub_names as $sub) {
+                $s2 = $conn->prepare("INSERT INTO sub_offices (office_id, sub_name) VALUES (?, ?)");
+                $s2->bind_param("is", $new_office_id, $sub);
+                $s2->execute(); $s2->close();
+            }
+            $success_message = "Office added successfully!";
+        } else { $error_message = "Error adding office: " . $stmt->error; }
+        $stmt->close();
+    }
+}
+
+// ── Handle Edit Office ──
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_office'])) {
+    $edit_office_id   = (int)$_POST['edit_office_id'];
+    $edit_office_name = trim($_POST['edit_office_name'] ?? '');
+    $edit_sub_names   = array_filter(array_map('trim', $_POST['edit_sub_names'] ?? []));
+    if (!empty($edit_office_name)) {
+        $stmt = $conn->prepare("UPDATE offices SET office_name = ? WHERE id = ?");
+        $stmt->bind_param("si", $edit_office_name, $edit_office_id);
+        $stmt->execute(); $stmt->close();
+        $conn->query("DELETE FROM sub_offices WHERE office_id = $edit_office_id");
+        foreach ($edit_sub_names as $sub) {
+            $s2 = $conn->prepare("INSERT INTO sub_offices (office_id, sub_name) VALUES (?, ?)");
+            $s2->bind_param("is", $edit_office_id, $sub);
+            $s2->execute(); $s2->close();
+        }
+        $success_message = "Office updated successfully!";
+    }
+}
+
+// ── Handle Delete Office ──
+if (isset($_GET['delete_office']) && is_numeric($_GET['delete_office'])) {
+    $conn->query("DELETE FROM offices WHERE id = " . (int)$_GET['delete_office']);
+    $success_message = "Office deleted successfully!";
+}
+
+// ── Fetch all offices with their sub-offices ──
+$offices_result = $conn->query("SELECT o.id, o.office_name, o.created_at,
+    GROUP_CONCAT(s.sub_name ORDER BY s.id SEPARATOR '||') AS sub_offices
+    FROM offices o LEFT JOIN sub_offices s ON o.id = s.office_id
+    GROUP BY o.id ORDER BY o.id ASC");
+// Handle user creation
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['create_user'])) {
     $username = $_POST['username'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $full_name = $_POST['full_name'];
     $email = $_POST['email'];
-    $office = $_POST['office'];
+    $department = $_POST['department'];
     $members = $_POST['members'];
     $role = $_POST['role'];
     
-    $sql = "INSERT INTO property_users (username, password, full_name, email, office, members, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO property_users (username, password, full_name, email, department, members, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sssssss", $username, $password, $full_name, $email, $office, $members, $role);
+    $stmt->bind_param("sssssss", $username, $password, $full_name, $email, $department, $members, $role);
     
     if ($stmt->execute()) {
         $success_message = "User created successfully!";
@@ -122,13 +225,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_user'])) {
     $username = $_POST['edit_username'];
     $full_name = $_POST['edit_full_name'];
     $email = $_POST['edit_email'];
-    $office = $_POST['edit_office'];
+    $department = $_POST['edit_department'];
     $members = $_POST['edit_members'];
     $role = $_POST['edit_role'];
+    $password = $_POST['edit_password'];
     
-    $sql = "UPDATE property_users SET username = ?, full_name = ?, email = ?, office = ?, members = ?, role = ? WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ssssssi", $username, $full_name, $email, $office, $members, $role, $user_id);
+    // Build update query
+    if (!empty($password)) {
+        // Update with new password
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        $sql = "UPDATE property_users SET username = ?, full_name = ?, email = ?, department = ?, members = ?, role = ?, password = ? WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssssssi", $username, $full_name, $email, $department, $members, $role, $password_hash, $user_id);
+    } else {
+        // Update without changing password
+        $sql = "UPDATE property_users SET username = ?, full_name = ?, email = ?, department = ?, members = ?, role = ? WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ssssssi", $username, $full_name, $email, $department, $members, $role, $user_id);
+    }
     
     if ($stmt->execute()) {
         $success_message = "User updated successfully!";
@@ -142,32 +256,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_user'])) {
 }
 
 // Handle user deletion
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_user'])) {
-    $user_id = $_POST['delete_user_id'];
-    
-    // Prevent admin from deleting themselves
-    if ($user_id != $current_user_id) {
-        $sql = "DELETE FROM property_users WHERE id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $user_id);
-        
-        if ($stmt->execute()) {
-            $success_message = "User deleted successfully!";
-        } else {
-            $error_message = "Error deleting user: " . $stmt->error;
-        }
-    } else {
-        $error_message = "You cannot delete your own account.";
+if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
+    $delete_id = $_GET['delete'];
+    // Don't allow deleting yourself
+    if ($delete_id != $current_user_id) {
+        $conn->query("DELETE FROM property_users WHERE id = $delete_id");
+        $success_message = "User deleted successfully!";
     }
 }
 
-// Fetch all users
-$users = $conn->query("SELECT id, username, full_name, email, office, members, role, created_at FROM property_users ORDER BY created_at DESC");
-$offices_result = $conn->query("SELECT id, office_name FROM offices ORDER BY office_name ASC");
-$offices = [];
-while ($office = $offices_result->fetch_assoc()) {
-    $offices[] = $office;
-}
+// Get all users
+$users = $conn->query("SELECT id, username, full_name, email, department, members, role, created_at FROM property_users ORDER BY created_at DESC");
 ?>
 
 <!DOCTYPE html>
@@ -179,95 +278,105 @@ while ($office = $offices_result->fetch_assoc()) {
     <link rel="icon" href="PSAU.ico">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Page Container */
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--gray-50);
+            font-family: var(--font-sans);
+        }
+        
         .page-container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem;
-            background: var(--gray-50);
-            min-height: 100vh;
+            padding: 1.5rem;
         }
-
-        /* Page Header */
+        
         .page-header {
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: var(--space-8);
+            margin-bottom: var(--space-6);
             border: 1px solid var(--gray-200);
+            position: relative;
+            overflow: hidden;
+            color: white;
         }
-
+        
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.15"/><circle cx="20" cy="60" r="0.5" fill="white" opacity="0.15"/><circle cx="80" cy="40" r="0.5" fill="white" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
+        }
+        
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 1rem;
+            gap: var(--space-4);
+            position: relative;
+            z-index: 1;
         }
-
+        
         .page-title {
             font-size: 2rem;
             font-weight: 700;
-            color: var(--primary-color);
-            margin: 0 0 0.5rem 0;
-        }
-
-        .page-subtitle {
-            color: var(--gray-600);
+            color: white;
             margin: 0;
+        }
+        
+        .page-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            margin: var(--space-1) 0 0 0;
             font-size: 1rem;
         }
-
-        /* Main Content */
+        
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
         .main-content {
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
             border: 1px solid var(--gray-200);
             overflow: hidden;
         }
-
+        
         .content-body {
-            padding: 2rem;
+            padding: 1.5rem;
         }
 
         /* Table Styles */
-        .table-responsive {
-            overflow-x: auto;
-        }
-
         .users-table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .users-table th {
-            background: var(--gray-50);
-            color: var(--gray-700);
-            font-weight: 600;
-            text-align: left;
-            padding: 1rem;
+            border-collapse: collapse;
             font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.025em;
+        }
+        
+        .users-table th,
+        .users-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .users-table th {
+            font-weight: 600;
+            color: var(--gray-700);
             background-color: var(--gray-50);
             border-bottom: 2px solid var(--gray-200);
         }
-
+        
         .users-table tbody tr:hover {
             background-color: var(--gray-50);
-        }
-
-        .users-table td {
-            padding: 1rem;
-            border-bottom: 1px solid var(--gray-200);
-            vertical-align: middle;
         }
 
         /* Role Badge */
@@ -281,19 +390,19 @@ while ($office = $offices_result->fetch_assoc()) {
             text-transform: uppercase;
             letter-spacing: 0.025em;
         }
-
+        
         .role-admin {
             background-color: #fef2f2;
             color: #991b1b;
             border: 1px solid #fecaca;
         }
-
+        
         .role-user {
             background-color: #f0fdf4;
             color: #166534;
             border: 1px solid #bbf7d0;
         }
-
+        
         /* User Avatar */
         .user-avatar {
             width: 32px;
@@ -308,24 +417,24 @@ while ($office = $offices_result->fetch_assoc()) {
             font-size: 0.875rem;
             margin-right: 0.75rem;
         }
-
+        
         .user-info {
             display: flex;
             align-items: center;
         }
-
+        
         .user-details {
             flex: 1;
         }
-
+        
         .user-name {
-            font-weight: 600;
+            font-weight: 500;
             color: var(--gray-900);
             margin-bottom: 0.125rem;
         }
-
+        
         .user-email {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             color: var(--gray-500);
         }
 
@@ -334,43 +443,40 @@ while ($office = $offices_result->fetch_assoc()) {
             display: flex;
             gap: 0.5rem;
         }
-
+        
         .btn-icon {
-            width: 32px;
-            height: 32px;
-            border: none;
-            border-radius: 6px;
+            padding: 0.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--gray-300);
+            background: white;
+            color: var(--gray-600);
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            transition: all 0.2s ease;
             font-size: 0.875rem;
-            transition: all 0.2s;
         }
-
-        .btn-icon.edit {
-            background: #dbeafe;
-            color: #1e40af;
+        
+        .btn-icon:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-400);
         }
-
-        .btn-icon.edit:hover {
-            background: #bfdbfe;
-        }
-
-        .btn-icon.delete {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
+        
         .btn-icon.delete:hover {
-            background: #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+        
+        .btn-icon.edit:hover {
+            background: #f0f9ff;
+            color: #1e40af;
+            border-color: #bfdbfe;
         }
 
         /* Buttons */
         .btn {
             padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: 8px;
+            border-radius: var(--radius);
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
@@ -380,99 +486,99 @@ while ($office = $offices_result->fetch_assoc()) {
             gap: 0.5rem;
             font-size: 0.875rem;
         }
-
+        
         .btn-primary {
             background: var(--primary-color);
             color: white;
         }
-
+        
         .btn-primary:hover {
             background: var(--primary-hover);
             transform: translateY(-1px);
         }
-
+        
         .btn-secondary {
             background: var(--gray-200);
             color: var(--gray-700);
         }
-
+        
         .btn-secondary:hover {
             background: var(--gray-300);
         }
 
-        /* Modal Styles */
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
             top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-        }
-
-        .modal.show {
-            display: flex;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
             align-items: center;
             justify-content: center;
         }
-
+        
+        .modal.show {
+            display: flex;
+        }
+        
         .modal-content {
             background: white;
-            border-radius: 12px;
-            width: 90%;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
             max-width: 500px;
+            width: 90%;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         }
-
+        
         .modal-header {
             padding: 1.5rem;
             border-bottom: 1px solid var(--gray-200);
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
         }
-
+        
         .modal-title {
             font-size: 1.25rem;
             font-weight: 600;
             color: var(--gray-900);
             margin: 0;
         }
-
+        
         .modal-close {
             background: none;
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
             color: var(--gray-400);
-            width: 32px;
-            height: 32px;
+            padding: 0;
+            width: 2rem;
+            height: 2rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 6px;
+            border-radius: var(--radius);
         }
-
+        
         .modal-close:hover {
-            background: var(--gray-100);
             color: var(--gray-600);
+            background: var(--gray-100);
         }
-
+        
         .modal-body {
             padding: 1.5rem;
         }
-
+        
         .modal-footer {
-            padding: 1.5rem;
+            padding: 1rem 1.5rem;
             border-top: 1px solid var(--gray-200);
             display: flex;
-            justify-content: flex-end;
             gap: 0.75rem;
+            justify-content: flex-end;
         }
 
         /* Form Styles */
@@ -480,13 +586,12 @@ while ($office = $offices_result->fetch_assoc()) {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1rem;
-            margin-bottom: 1rem;
         }
-
+        
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
-
+        
         .form-label {
             display: block;
             margin-bottom: 0.5rem;
@@ -494,157 +599,170 @@ while ($office = $offices_result->fetch_assoc()) {
             color: var(--gray-700);
             font-size: 0.875rem;
         }
-
+        
         .form-control {
+            display: block;
             width: 100%;
-            padding: 0.75rem;
-            border: 2px solid var(--gray-200);
-            border-radius: 8px;
+            padding: 0.625rem 0.875rem;
             font-size: 0.875rem;
-            transition: border-color 0.2s;
+            line-height: 1.5;
+            color: var(--gray-900);
+            background-color: white;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius);
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
         }
-
+        
         .form-control:focus {
-            outline: none;
+            outline: 0;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(30, 90, 61, 0.1);
+            box-shadow: 0 0 0 3px rgb(30 90 61 / 0.1);
         }
 
-        /* Alerts */
+        /* Alert */
         .alert {
-            padding: 1rem;
-            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
             margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
+            border: 1px solid;
         }
-
+        
         .alert-success {
-            background: #f0fdf4;
+            background-color: #f0fdf4;
             color: #166534;
-            border: 1px solid #bbf7d0;
+            border-color: #bbf7d0;
         }
-
+        
         .alert-error {
-            background: #fef2f2;
+            background-color: #fef2f2;
             color: #991b1b;
-            border: 1px solid #fecaca;
+            border-color: #fecaca;
         }
 
-        /* Empty State */
-        .empty-state {
+        /* Confirmation Dialog */
+        .confirm-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .confirm-dialog.show {
+            display: flex;
+        }
+        
+        .confirm-dialog-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            max-width: 400px;
+            width: 90%;
             text-align: center;
-            padding: 4rem 2rem;
+            padding: 2rem;
         }
-
-        .empty-state-icon {
-            font-size: 4rem;
+        
+        .confirm-dialog-icon {
+            font-size: 3rem;
             margin-bottom: 1rem;
+            color: #dc2626;
         }
-
-        .empty-state-title {
+        
+        .confirm-dialog-title {
             font-size: 1.25rem;
             font-weight: 600;
             color: var(--gray-900);
             margin-bottom: 0.5rem;
         }
-
-        .empty-state-text {
-            color: var(--gray-500);
-            margin-bottom: 2rem;
+        
+        .confirm-dialog-message {
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
         }
-
-        /* Back Link */
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-            margin-bottom: 2rem;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            transition: background-color 0.2s;
-        }
-
-        .back-link:hover {
-            background: var(--gray-100);
-        }
-
-        /* Office Management Styles */
-        .office-section {
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 2px solid var(--gray-200);
-        }
-
-        .office-header {
+        
+        .confirm-dialog-buttons {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .office-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 0.75rem;
-        }
-
-        .office-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            background: var(--gray-50);
-            border: 1px solid var(--gray-200);
-            border-radius: 8px;
-            min-height: 60px;
-            box-sizing: border-box;
-        }
-
-        .office-name {
-            font-weight: 500;
-            color: var(--gray-700);
-            word-break: break-word;
-            line-height: 1.3;
-            flex: 1;
-            padding-right: 0.5rem;
-        }
-
-        .office-actions {
-            display: flex;
-            gap: 0.25rem;
-        }
-
-        .btn-icon-sm {
-            width: 24px;
-            height: 24px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
             justify-content: center;
-            font-size: 0.75rem;
-            transition: all 0.2s;
         }
-
-        .btn-icon-sm.delete {
-            background: #fee2e2;
-            color: #991b1b;
+        
+        .btn-confirm {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 0.625rem 1.5rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
         }
-
-        .btn-icon-sm.delete:hover {
-            background: #fecaca;
+        
+        .btn-confirm:hover {
+            background: #b91c1c;
         }
-
-        .empty-offices {
+        
+        .btn-cancel {
+            background: var(--gray-200);
+            color: var(--gray-700);
+            border: none;
+            padding: 0.625rem 1.5rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+        
+        .btn-cancel:hover {
+            background: var(--gray-300);
+        }
+        
+        /* Empty State */
+        .empty-state {
             text-align: center;
-            padding: 2rem;
+            padding: 3rem 1rem;
             color: var(--gray-500);
+        }
+        
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .empty-state-title {
+            font-size: 1.125rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--gray-700);
+        }
+        
+        .empty-state-text {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Scrollbar Styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-hover);
         }
         @media (max-width: 768px) {
             .page-container {
@@ -677,38 +795,43 @@ while ($office = $offices_result->fetch_assoc()) {
 </head>
 <body>
     <div class="page-container">
-        <a href="index.php" class="back-link">← Back to Dashboard</a>
-        
         <!-- Page Header -->
         <div class="page-header">
             <div class="header-content">
                 <div>
                     <h1 class="page-title">User Manager</h1>
-                    <p class="page-subtitle">Manage system users and their access levels</p>
+                    <p class="page-subtitle">Manage system users, offices and their access levels</p>
                 </div>
-                <div class="header-actions">
-                    <button class="btn btn-primary" onclick="showCreateModal()">
-                        + Create User
-                    </button>
+                <div class="header-actions" id="headerActions">
+                    <button class="btn btn-primary" id="btnCreateUser" onclick="showCreateModal()">+ Create User</button>
+                    <button class="btn btn-primary" id="btnCreateOffice" onclick="showOfficeModal()" style="display:none;background:#117a65;">+ Add Office</button>
                 </div>
             </div>
         </div>
-        
+
+        <!-- Tab Nav -->
+        <div style="display:flex;gap:4px;margin-bottom:0;background:#fff;border-radius:8px 8px 0 0;border:1px solid var(--gray-200);border-bottom:none;overflow:hidden;">
+            <button id="tab-users" onclick="switchTab('users')" style="padding:12px 28px;border:none;border-bottom:3px solid var(--primary-color);background:#fff;font-weight:600;color:var(--primary-color);cursor:pointer;font-size:0.9rem;">👥 Users</button>
+            <button id="tab-offices" onclick="switchTab('offices')" style="padding:12px 28px;border:none;border-bottom:3px solid transparent;background:#fff;font-weight:500;color:var(--gray-500);cursor:pointer;font-size:0.9rem;">🏢 Offices</button>
+        </div>
+
         <!-- Main Content -->
-        <div class="main-content">
+        <div class="main-content" style="border-radius:0 8px 8px 8px;">
             <div class="content-body">
                 <?php if (isset($success_message)): ?>
                     <div class="alert alert-success">
-                        ✅ <?php echo htmlspecialchars($success_message); ?>
+                        <?php echo htmlspecialchars($success_message); ?>
                     </div>
                 <?php endif; ?>
                 
                 <?php if (isset($error_message)): ?>
                     <div class="alert alert-error">
-                        ⚠️ <?php echo htmlspecialchars($error_message); ?>
+                        <?php echo htmlspecialchars($error_message); ?>
                     </div>
                 <?php endif; ?>
                 
+                <!-- ── USERS TAB ── -->
+                <div id="section-users">
                 <?php if ($users->num_rows > 0): ?>
                     <div class="table-responsive">
                         <table class="users-table">
@@ -738,7 +861,7 @@ while ($office = $offices_result->fetch_assoc()) {
                                             </div>
                                         </td>
                                         <td><?php echo htmlspecialchars($user['username']); ?></td>
-                                        <td><?php echo htmlspecialchars($user['office'] ?? 'Not Assigned'); ?></td>
+                                        <td><?php echo htmlspecialchars($user['department'] ?? 'Not Assigned'); ?></td>
                                         <td><?php echo htmlspecialchars($user['members'] ?? 'Not Assigned'); ?></td>
                                         <td>
                                             <span class="role-badge role-<?php echo $user['role']; ?>">
@@ -748,7 +871,7 @@ while ($office = $offices_result->fetch_assoc()) {
                                         <td><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>
                                         <td>
                                             <div class="action-buttons">
-                                                <button class="btn-icon edit" onclick="editUser(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>', '<?php echo htmlspecialchars($user['full_name']); ?>', '<?php echo htmlspecialchars($user['email']); ?>', '<?php echo htmlspecialchars($user['office'] ?? ''); ?>', '<?php echo htmlspecialchars($user['members'] ?? ''); ?>', '<?php echo $user['role']; ?>')" title="Edit User">
+                                                <button class="btn-icon edit" onclick="editUser(<?php echo $user['id']; ?>)" title="Edit User">
                                                     ✏️
                                                 </button>
                                                 <?php if ($user['id'] != $current_user_id): ?>
@@ -775,47 +898,59 @@ while ($office = $offices_result->fetch_assoc()) {
                         </button>
                     </div>
                 <?php endif; ?>
-                
-                <!-- Office Management Section -->
-                <div class="office-section">
-                    <div class="office-header">
-                        <h3 style="margin: 0; color: var(--gray-700);">Manage Offices</h3>
-                        <button type="button" class="btn btn-primary" onclick="showAddOfficeModal()">
-                            + Add Office
-                        </button>
+                </div><!-- end section-users -->
+
+                <!-- ── OFFICES TAB ── -->
+                <div id="section-offices" style="display:none;">
+                    <?php if ($offices_result && $offices_result->num_rows > 0): ?>
+                    <div class="table-responsive">
+                        <table class="users-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:30%">Main Office</th>
+                                    <th>Sub-Offices / Units</th>
+                                    <th style="width:130px;">Created</th>
+                                    <th style="width:90px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php while ($off = $offices_result->fetch_assoc()):
+                                $subs = $off['sub_offices'] ? explode('||', $off['sub_offices']) : [];
+                            ?>
+                                <tr>
+                                    <td><strong style="color:var(--primary-color);"><?= htmlspecialchars($off['office_name']) ?></strong></td>
+                                    <td>
+                                        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                                        <?php foreach ($subs as $sub): ?>
+                                            <span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:9999px;padding:2px 10px;font-size:0.75rem;">
+                                                <?= htmlspecialchars($sub) ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                        <?php if (empty($subs)): ?><span style="color:#aaa;font-size:0.8rem;">None</span><?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td><?= date('M d, Y', strtotime($off['created_at'])) ?></td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon edit" onclick="editOffice(<?= $off['id'] ?>, <?= htmlspecialchars(json_encode($off['office_name'])) ?>, <?= htmlspecialchars(json_encode($subs)) ?>)" title="Edit Office">✏️</button>
+                                            <button class="btn-icon delete" onclick="confirmDeleteOffice(<?= $off['id'] ?>, '<?= htmlspecialchars($off['office_name']) ?>')" title="Delete Office">🗑️</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
                     </div>
-                    
-                    <?php if (isset($office_success)): ?>
-                        <div class="alert alert-success">
-                            ✅ <?php echo htmlspecialchars($office_success); ?>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($office_error)): ?>
-                        <div class="alert alert-error">
-                            ⚠️ <?php echo htmlspecialchars($office_error); ?>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if (count($offices) > 0): ?>
-                        <div class="office-list">
-                            <?php foreach ($offices as $office): ?>
-                                <div class="office-item">
-                                    <span class="office-name"><?php echo htmlspecialchars($office['office_name']); ?></span>
-                                    <div class="office-actions">
-                                        <button type="button" class="btn-icon-sm delete" onclick="confirmDeleteOffice(<?php echo $office['id']; ?>, '<?php echo htmlspecialchars($office['office_name']); ?>')" title="Delete Office">
-                                            🗑️
-                                        </button>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
                     <?php else: ?>
-                        <div class="empty-offices">
-                            No offices added yet. Click "Add Office" to create one.
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🏢</div>
+                            <div class="empty-state-title">No offices found</div>
+                            <div class="empty-state-text">Add your first office to get started.</div>
+                            <button class="btn btn-primary" onclick="showOfficeModal()">+ Add Office</button>
                         </div>
                     <?php endif; ?>
-                </div>
+                </div><!-- end section-offices -->
+
             </div>
         </div>
     </div>
@@ -851,12 +986,14 @@ while ($office = $offices_result->fetch_assoc()) {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="office" class="form-label">Office *</label>
-                            <select id="office" name="office" class="form-control" required>
+                            <label for="department" class="form-label">Office *</label>
+                            <select id="department" name="department" class="form-control" required>
                                 <option value="">Select Office</option>
-                                <?php foreach ($offices as $office): ?>
+                                <?php 
+                                $offices_dropdown = $conn->query("SELECT DISTINCT office_name FROM offices ORDER BY office_name ASC");
+                                while ($office = $offices_dropdown->fetch_assoc()): ?>
                                     <option value="<?php echo htmlspecialchars($office['office_name']); ?>"><?php echo htmlspecialchars($office['office_name']); ?></option>
-                                <?php endforeach; ?>
+                                <?php endwhile; ?>
                             </select>
                         </div>
                         <div class="form-group">
@@ -874,6 +1011,10 @@ while ($office = $offices_result->fetch_assoc()) {
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_password" class="form-label">New Password (leave blank to keep current)</label>
+                        <input type="password" id="edit_password" name="edit_password" class="form-control" placeholder="Enter new password or leave blank">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -910,12 +1051,14 @@ while ($office = $offices_result->fetch_assoc()) {
                             <input type="text" id="edit_full_name" name="edit_full_name" class="form-control" required>
                         </div>
                         <div class="form-group">
-                            <label for="edit_office" class="form-label">Office *</label>
-                            <select id="edit_office" name="edit_office" class="form-control" required>
+                            <label for="edit_department" class="form-label">Office *</label>
+                            <select id="edit_department" name="edit_department" class="form-control" required>
                                 <option value="">Select Office</option>
-                                <?php foreach ($offices as $office): ?>
+                                <?php 
+                                $offices_dropdown = $conn->query("SELECT DISTINCT office_name FROM offices ORDER BY office_name ASC");
+                                while ($office = $offices_dropdown->fetch_assoc()): ?>
                                     <option value="<?php echo htmlspecialchars($office['office_name']); ?>"><?php echo htmlspecialchars($office['office_name']); ?></option>
-                                <?php endforeach; ?>
+                                <?php endwhile; ?>
                             </select>
                         </div>
                     </div>
@@ -945,161 +1088,358 @@ while ($office = $offices_result->fetch_assoc()) {
         </div>
     </div>
 
-    <!-- Add Office Modal -->
-    <div class="modal" id="addOfficeModal">
-        <div class="modal-content">
+    <!-- ── Add Office Modal ── -->
+    <div class="modal" id="officeModal">
+        <div class="modal-content" style="max-width:600px;">
             <div class="modal-header">
-                <h2 class="modal-title">Add New Office</h2>
-                <button class="modal-close" onclick="hideAddOfficeModal()">&times;</button>
+                <h2 class="modal-title">Add Office</h2>
+                <button class="modal-close" onclick="hideOfficeModal()">&times;</button>
             </div>
             <form method="post" autocomplete="off">
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="office_name" class="form-label">Office Name *</label>
-                        <input type="text" id="office_name" name="office_name" class="form-control" required placeholder="Enter office name">
+                        <label class="form-label">Main Office Name *</label>
+                        <input type="text" name="office_name" class="form-control" required placeholder="e.g. Office of the President">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sub-Offices / Units</label>
+                        <div id="subOfficeList" style="display:flex;flex-direction:column;gap:8px;">
+                            <div class="sub-office-row" style="display:flex;gap:6px;align-items:center;">
+                                <input type="text" name="sub_names[]" class="form-control" placeholder="e.g. University President">
+                                <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>
+                            </div>
+                            <div class="sub-office-row" style="display:flex;gap:6px;align-items:center;">
+                                <input type="text" name="sub_names[]" class="form-control" placeholder="e.g. University Secretary">
+                                <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>
+                            </div>
+                            <div class="sub-office-row" style="display:flex;gap:6px;align-items:center;">
+                                <input type="text" name="sub_names[]" class="form-control" placeholder="e.g. Head, Legal Unit">
+                                <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="addSubOfficeRow('subOfficeList','sub_names[]')" style="margin-top:10px;background:#f0fdf4;border:1px dashed #86efac;color:#166534;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:0.85rem;width:100%;">+ Add Sub-Office</button>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="hideAddOfficeModal()">Cancel</button>
-                    <button type="submit" name="create_office" class="btn btn-primary">Add Office</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideOfficeModal()">Cancel</button>
+                    <button type="submit" name="create_office" class="btn btn-primary" style="background:#117a65;">Save Office</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Delete Office Confirmation Modal -->
-    <div class="modal" id="deleteOfficeModal">
-        <div class="modal-content">
+    <!-- ── Edit Office Modal ── -->
+    <div class="modal" id="editOfficeModal">
+        <div class="modal-content" style="max-width:600px;">
             <div class="modal-header">
-                <h2 class="modal-title">Confirm Delete Office</h2>
-                <button class="modal-close" onclick="hideDeleteOfficeModal()">&times;</button>
+                <h2 class="modal-title">Edit Office</h2>
+                <button class="modal-close" onclick="hideEditOfficeModal()">&times;</button>
             </div>
-            <form method="post">
-                <input type="hidden" id="delete_office_id" name="delete_office_id">
+            <form method="post" autocomplete="off">
+                <input type="hidden" id="edit_office_id" name="edit_office_id">
                 <div class="modal-body">
-                    <p>Are you sure you want to delete office <strong id="delete_office_name"></strong>? This action cannot be undone.</p>
+                    <div class="form-group">
+                        <label class="form-label">Main Office Name *</label>
+                        <input type="text" id="edit_office_name" name="edit_office_name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Sub-Offices / Units</label>
+                        <div id="editSubOfficeList" style="display:flex;flex-direction:column;gap:8px;"></div>
+                        <button type="button" onclick="addSubOfficeRow('editSubOfficeList','edit_sub_names[]')" style="margin-top:10px;background:#f0fdf4;border:1px dashed #86efac;color:#166534;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:0.85rem;width:100%;">+ Add Sub-Office</button>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="hideDeleteOfficeModal()">Cancel</button>
-                    <button type="submit" name="delete_office" class="btn btn-primary" style="background: #dc2626;">Delete Office</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideEditOfficeModal()">Cancel</button>
+                    <button type="submit" name="edit_office" class="btn btn-primary" style="background:#117a65;">Update Office</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div class="modal" id="deleteModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Confirm Delete</h2>
-                <button class="modal-close" onclick="hideDeleteModal()">&times;</button>
+    <!-- Delete Confirmation Dialog for Offices -->
+    <div class="confirm-dialog" id="deleteOfficeDialog">
+        <div class="confirm-dialog-content">
+            <div class="confirm-dialog-icon">⚠️</div>
+            <h3 class="confirm-dialog-title">Confirm Deletion</h3>
+            <p class="confirm-dialog-message" id="deleteOfficeMessage">Are you sure you want to delete this office? This action cannot be undone.</p>
+            <div class="confirm-dialog-buttons">
+                <button class="btn-cancel" id="deleteOfficeCancelBtn" onclick="hideDeleteOfficeDialog()">Cancel</button>
+                <button class="btn-confirm" id="deleteOfficeYesBtn">Yes, Delete</button>
             </div>
-            <form method="post">
-                <input type="hidden" id="delete_user_id" name="delete_user_id">
-                <div class="modal-body">
-                    <p>Are you sure you want to delete user <strong id="delete_user_name"></strong>? This action cannot be undone.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="hideDeleteModal()">Cancel</button>
-                    <button type="submit" name="delete_user" class="btn btn-primary" style="background: #dc2626;">Delete User</button>
-                </div>
-            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <div class="confirm-dialog" id="deleteDialog">
+        <div class="confirm-dialog-content">
+            <div class="confirm-dialog-icon">⚠️</div>
+            <h3 class="confirm-dialog-title">Confirm Deletion</h3>
+            <p class="confirm-dialog-message" id="deleteMessage">Are you sure you want to delete this user? This action cannot be undone.</p>
+            <div class="confirm-dialog-buttons">
+                <button class="btn-cancel" id="deleteCancelBtn" onclick="hideDeleteDialog()">Cancel</button>
+                <button class="btn-confirm" id="deleteYesBtn">Yes, Delete</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Modal Functions
+        // ── Tab switching ──
+        function switchTab(tab) {
+            const isUsers = tab === 'users';
+            document.getElementById('section-users').style.display   = isUsers ? '' : 'none';
+            document.getElementById('section-offices').style.display = isUsers ? 'none' : '';
+            document.getElementById('tab-users').style.borderBottomColor   = isUsers ? 'var(--primary-color)' : 'transparent';
+            document.getElementById('tab-offices').style.borderBottomColor = isUsers ? 'transparent' : '#117a65';
+            document.getElementById('tab-users').style.color   = isUsers ? 'var(--primary-color)' : 'var(--gray-500)';
+            document.getElementById('tab-offices').style.color = isUsers ? 'var(--gray-500)' : '#117a65';
+            document.getElementById('tab-users').style.fontWeight   = isUsers ? '600' : '500';
+            document.getElementById('tab-offices').style.fontWeight = isUsers ? '500' : '600';
+            document.getElementById('btnCreateUser').style.display   = isUsers ? '' : 'none';
+            document.getElementById('btnCreateOffice').style.display = isUsers ? 'none' : '';
+        }
+
+        // ── Office modal helpers ──
+        function addSubOfficeRow(listId, inputName) {
+            const list = document.getElementById(listId);
+            const div = document.createElement('div');
+            div.className = 'sub-office-row';
+            div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+            div.innerHTML = `<input type="text" name="${inputName}" class="form-control" placeholder="Sub-office / unit name">
+                <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>`;
+            list.appendChild(div);
+        }
+
+        function removeSubRow(btn) {
+            const row = btn.closest('.sub-office-row');
+            const list = row.parentElement;
+            if (list.querySelectorAll('.sub-office-row').length > 1) {
+                row.remove();
+            } else {
+                row.querySelector('input').value = '';
+            }
+        }
+
+        function showOfficeModal() {
+            document.getElementById('officeModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function hideOfficeModal() {
+            document.getElementById('officeModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        function showEditOfficeModal() {
+            document.getElementById('editOfficeModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        function hideEditOfficeModal() {
+            document.getElementById('editOfficeModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        function editOffice(id, name, subs) {
+            document.getElementById('edit_office_id').value = id;
+            document.getElementById('edit_office_name').value = name;
+            const list = document.getElementById('editSubOfficeList');
+            list.innerHTML = '';
+            const subsArr = Array.isArray(subs) ? subs : [];
+            const toShow = subsArr.length > 0 ? subsArr : ['','',''];
+            toShow.forEach(sub => {
+                const div = document.createElement('div');
+                div.className = 'sub-office-row';
+                div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+                div.innerHTML = `<input type="text" name="edit_sub_names[]" class="form-control" value="${sub.replace(/"/g,'&quot;')}" placeholder="Sub-office / unit name">
+                    <button type="button" onclick="removeSubRow(this)" style="background:none;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;">✕</button>`;
+                list.appendChild(div);
+            });
+            showEditOfficeModal();
+        }
+        function confirmDeleteOffice(id, name) {
+            showDeleteOfficeDialog(id, name);
+        }
+        
+        function showDeleteOfficeDialog(id, name) {
+            const dialog = document.getElementById('deleteOfficeDialog');
+            const messageElement = document.getElementById('deleteOfficeMessage');
+            messageElement.textContent = `Are you sure you want to delete office "${name}" and all its sub-offices? This action cannot be undone.`;
+            
+            // Set up the Yes button to perform the deletion
+            const yesBtn = document.getElementById('deleteOfficeYesBtn');
+            yesBtn.onclick = function() {
+                hideDeleteOfficeDialog();
+                // Perform deletion via GET request
+                window.location.href = `?delete_office=${id}`;
+            };
+            
+            dialog.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function hideDeleteOfficeDialog() {
+            const dialog = document.getElementById('deleteOfficeDialog');
+            dialog.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // Close office modals on outside click / Escape
+        document.getElementById('officeModal').addEventListener('click', function(e) { if (e.target===this) hideOfficeModal(); });
+        document.getElementById('editOfficeModal').addEventListener('click', function(e) { if (e.target===this) hideEditOfficeModal(); });
+
+        // ── User Modal functions ──
         function showCreateModal() {
             document.getElementById('createModal').classList.add('show');
             document.body.style.overflow = 'hidden';
         }
-
+        
         function hideCreateModal() {
             document.getElementById('createModal').classList.remove('show');
-            document.body.style.overflow = 'auto';
+            document.body.style.overflow = '';
+            // Reset form
             document.querySelector('#createModal form').reset();
         }
-
+        
+        // Delete confirmation
+        function confirmDelete(userId, userName) {
+            showDeleteDialog(userId, userName);
+        }
+        
+        // Edit user function
+        function editUser(userId) {
+            // Fetch user data via AJAX to get department info
+            fetch(`get_user_data.php?id=${userId}`)
+                .then(response => response.json())
+                .then(user => {
+                    // Fill the edit form
+                    document.getElementById('edit_user_id').value = user.id;
+                    document.getElementById('edit_username').value = user.username;
+                    document.getElementById('edit_email').value = user.email;
+                    document.getElementById('edit_full_name').value = user.full_name;
+                    document.getElementById('edit_department').value = user.department || '';
+                    document.getElementById('edit_members').value = user.members || '';
+                    document.getElementById('edit_role').value = user.role;
+                    document.getElementById('edit_password').value = '';
+                    
+                    // Show the edit modal
+                    showEditModal();
+                })
+                .catch(error => {
+                    console.error('Error fetching user data:', error);
+                    // Fallback to table data if AJAX fails
+                    const row = document.querySelector(`tr:has(button[onclick="editUser(${userId})"])`);
+                    const cells = row.getElementsByTagName('td');
+                    
+                    const userInfo = cells[0].querySelector('.user-name').textContent;
+                    const userEmail = cells[0].querySelector('.user-email').textContent;
+                    const username = cells[1].textContent;
+                    const role = cells[2].querySelector('.role-badge').textContent.toLowerCase();
+                    
+                    document.getElementById('edit_user_id').value = userId;
+                    document.getElementById('edit_username').value = username;
+                    document.getElementById('edit_email').value = userEmail;
+                    document.getElementById('edit_full_name').value = userInfo;
+                    document.getElementById('edit_department').value = '';
+                    document.getElementById('edit_role').value = role;
+                    document.getElementById('edit_password').value = '';
+                    
+                    showEditModal();
+                });
+        }
+        
         function showEditModal() {
             document.getElementById('editModal').classList.add('show');
             document.body.style.overflow = 'hidden';
         }
-
+        
         function hideEditModal() {
             document.getElementById('editModal').classList.remove('show');
-            document.body.style.overflow = 'auto';
+            document.body.style.overflow = '';
+            document.querySelector('#editModal form').reset();
         }
-
-        function showDeleteModal() {
-            document.getElementById('deleteModal').classList.add('show');
+        
+        // Delete confirmation dialog
+        function showDeleteDialog(userId, userName) {
+            const dialog = document.getElementById('deleteDialog');
+            const messageElement = document.getElementById('deleteMessage');
+            messageElement.textContent = `Are you sure you want to delete user "${userName}"? This action cannot be undone.`;
+            
+            // Set up the Yes button to perform the deletion
+            const yesBtn = document.getElementById('deleteYesBtn');
+            yesBtn.onclick = function() {
+                hideDeleteDialog();
+                // Perform deletion via GET request
+                window.location.href = `?delete=${userId}`;
+            };
+            
+            dialog.classList.add('show');
             document.body.style.overflow = 'hidden';
         }
-
-        function hideDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('show');
-            document.body.style.overflow = 'auto';
+        
+        function hideDeleteDialog() {
+            const dialog = document.getElementById('deleteDialog');
+            dialog.classList.remove('show');
+            document.body.style.overflow = '';
         }
-
-        // Edit User Function
-        function editUser(id, username, fullName, email, office, members, role) {
-            document.getElementById('edit_user_id').value = id;
-            document.getElementById('edit_username').value = username;
-            document.getElementById('edit_full_name').value = fullName;
-            document.getElementById('edit_email').value = email;
-            document.getElementById('edit_office').value = office;
-            document.getElementById('edit_members').value = members;
-            document.getElementById('edit_role').value = role;
-            showEditModal();
-        }
-
-        // Delete User Function
-        function confirmDelete(id, fullName) {
-            document.getElementById('delete_user_id').value = id;
-            document.getElementById('delete_user_name').textContent = fullName;
-            showDeleteModal();
-        }
-
-        // Office Modal Functions
-        function showAddOfficeModal() {
-            document.getElementById('addOfficeModal').classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function hideAddOfficeModal() {
-            document.getElementById('addOfficeModal').classList.remove('show');
-            document.body.style.overflow = 'auto';
-            document.querySelector('#addOfficeModal form').reset();
-        }
-
-        function showDeleteOfficeModal() {
-            document.getElementById('deleteOfficeModal').classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function hideDeleteOfficeModal() {
-            document.getElementById('deleteOfficeModal').classList.remove('show');
-            document.body.style.overflow = 'auto';
-        }
-
-        function confirmDeleteOffice(id, name) {
-            document.getElementById('delete_office_id').value = id;
-            document.getElementById('delete_office_name').textContent = name;
-            showDeleteOfficeModal();
-        }
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.classList.remove('show');
-                document.body.style.overflow = 'auto';
+        
+        // Close modal on outside click
+        document.getElementById('createModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                hideCreateModal();
             }
-        }
-
-        // Close modals with Escape key
+        });
+        
+        document.getElementById('editModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                hideEditModal();
+            }
+        });
+        
+        document.getElementById('deleteDialog').addEventListener('click', function(event) {
+            if (event.target === this) {
+                hideDeleteDialog();
+            }
+        });
+        
+        document.getElementById('deleteOfficeDialog').addEventListener('click', function(event) {
+            if (event.target === this) {
+                hideDeleteOfficeDialog();
+            }
+        });
+        
+        // Close modal on Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                document.querySelectorAll('.modal.show').forEach(modal => {
-                    modal.classList.remove('show');
-                });
-                document.body.style.overflow = 'auto';
+                hideCreateModal();
+                hideEditModal();
+                hideOfficeModal();
+                hideEditOfficeModal();
+                hideDeleteDialog();
+                hideDeleteOfficeDialog();
+            }
+        });
+
+        // Form validation
+        document.querySelector('#createModal form').addEventListener('submit', function(e) {
+            const username = document.getElementById('username').value.trim();
+            const existingUsernames = <?php echo json_encode(array_column($users->fetch_all(MYSQLI_ASSOC), 'username')); ?>;
+            
+            if (existingUsernames.includes(username)) {
+                e.preventDefault();
+                alert('Username "' + username + '" already exists. Please choose a different username.');
+                return false;
+            }
+        });
+
+        document.querySelector('#editModal form').addEventListener('submit', function(e) {
+            const username = document.getElementById('edit_username').value.trim();
+            const currentUserId = document.getElementById('edit_user_id').value;
+            const existingUsers = <?php echo json_encode($users->fetch_all(MYSQLI_ASSOC)); ?>;
+            
+            const conflictingUser = existingUsers.find(user => 
+                user.username === username && user.id != currentUserId
+            );
+            
+            if (conflictingUser) {
+                e.preventDefault();
+                alert('Username "' + username + '" already exists. Please choose a different username.');
+                return false;
             }
         });
     </script>
