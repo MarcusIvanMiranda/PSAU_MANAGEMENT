@@ -6,6 +6,12 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+// Check and add assisted_by column if it doesn't exist
+$column_check = $conn->query("SHOW COLUMNS FROM nap_headers LIKE 'assisted_by'");
+if ($column_check->num_rows == 0) {
+    $conn->query("ALTER TABLE nap_headers ADD COLUMN assisted_by VARCHAR(255) DEFAULT NULL AFTER date_prepared");
+}
+
 session_start();
 
 $success_message = '';
@@ -41,10 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_header'])) {
     $address             = trim($_POST['address'] ?? '');
     $person_incharge     = trim($_POST['person_incharge'] ?? '');
     $date_prepared       = trim($_POST['date_prepared'] ?? '');
+    $assisted_by         = trim($_POST['assisted_by'] ?? '');
 
     if ($name_of_office && $department_division && $section_unit && $address && $person_incharge && $date_prepared) {
-        $stmt = $conn->prepare("INSERT INTO nap_headers (name_of_office, department_division, section_unit, telephone_no, email_address, address, person_incharge, date_prepared) VALUES (?,?,?,?,?,?,?,?)");
-        $stmt->bind_param("ssssssss", $name_of_office, $department_division, $section_unit, $telephone_no, $email_address, $address, $person_incharge, $date_prepared);
+        $stmt = $conn->prepare("INSERT INTO nap_headers (name_of_office, department_division, section_unit, telephone_no, email_address, address, person_incharge, date_prepared, assisted_by) VALUES (?,?,?,?,?,?,?,?,?)");
+        $stmt->bind_param("sssssssss", $name_of_office, $department_division, $section_unit, $telephone_no, $email_address, $address, $person_incharge, $date_prepared, $assisted_by);
         if ($stmt->execute()) {
             $_SESSION['active_header_id'] = $stmt->insert_id;
             $success_message = "Header saved! Now add record rows below.";
@@ -389,10 +396,6 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
 <!-- TOPNAV -->
 <div class="topnav">
     <div class="logo">📋 NAP Records <small>Inventory &amp; Appraisal System</small></div>
-    <?php if ($active_header): ?>
-        <a href="records_table.php?header_id=<?= $active_header_id ?>" class="nav-btn green" target="_blank">🖨 Print Active Group</a>
-    <?php endif; ?>
-    <a href="records_table.php" class="nav-btn" target="_blank">📄 View All</a>
 </div>
 
 <div class="layout">
@@ -550,7 +553,7 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
             <div class="card-hd">
                 <div class="step-dot done">3</div>
                 <h3>Record Rows Under This Header</h3>
-                <a href="records_table.php?header_id=<?= $active_header_id ?>" target="_blank" class="btn-ghost" style="margin-left:auto;">🖨 Print / View Form</a>
+                <a href="records_table.php?header_id=<?= $active_header_id ?>" class="btn-ghost" style="margin-left:auto;">🖨 Print / View Form</a>
             </div>
             <?php if (empty($active_records)): ?>
                 <div class="empty"><div class="icon">📂</div><p>No rows yet. Fill in the form above and click "Add Record Row".</p></div>
@@ -656,6 +659,8 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
                         <input type="text" name="person_incharge" value="<?= htmlspecialchars($current_user_full_name) ?>" readonly></div>
                     <div class="fg s2"><label>8. Date Prepared <span class="req">*</span></label>
                         <input type="text" name="date_prepared" value="<?= $current_date ?>" readonly></div>
+                    <div class="fg s2"><label>9. Assisted By</label>
+                        <input type="text" name="assisted_by" placeholder="Enter assistant name"></div>
                 </div>
                 <div class="modal-ft" style="padding:0; margin-top:6px; border:none; display:flex; gap:10px;">
                     <button type="submit" name="save_header" class="btn-primary">💾 Save Header</button>
