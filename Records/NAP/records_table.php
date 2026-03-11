@@ -6,6 +6,12 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+// Check and add assisted_by column if it doesn't exist
+$column_check = $conn->query("SHOW COLUMNS FROM nap_headers LIKE 'assisted_by'");
+if ($column_check->num_rows == 0) {
+    $conn->query("ALTER TABLE nap_headers ADD COLUMN assisted_by VARCHAR(255) DEFAULT NULL AFTER date_prepared");
+}
+
 $header_id = isset($_GET['header_id']) ? (int)$_GET['header_id'] : 0;
 
 if ($header_id) {
@@ -17,11 +23,25 @@ if ($header_id) {
     $header_data   = $header_result ? $header_result->fetch_assoc() : [];
     $records_sql   = "SELECT * FROM nap_records ORDER BY header_id ASC, created_at ASC";
 }
-$records = $conn->query($records_sql);
+$records_result = $conn->query($records_sql);
+
+/* Fetch all records into array so we can paginate */
+$all_records = [];
+if ($records_result) {
+    while ($r = $records_result->fetch_assoc()) {
+        $all_records[] = $r;
+    }
+}
 
 $all_hdrs_res = $conn->query("SELECT id, department_division, section_unit, date_prepared FROM nap_headers ORDER BY created_at DESC");
 $all_hdrs = [];
 if ($all_hdrs_res) while ($r = $all_hdrs_res->fetch_assoc()) $all_hdrs[] = $r;
+
+/* ── Pagination: 15 data rows per page ── */
+$ROWS_PER_PAGE = 14;
+$chunks        = array_chunk($all_records, $ROWS_PER_PAGE);
+if (empty($chunks)) $chunks = [[]];   // at least one page even if no records
+$total_pages   = count($chunks);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -30,9 +50,50 @@ if ($all_hdrs_res) while ($r = $all_hdrs_res->fetch_assoc()) $all_hdrs[] = $r;
 <title>NAP Records – Print View</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+:root {
+    --green-dark:   #1a5c38;
+    --green-main:   #1e7a47;
+    --green-mid:    #2d9e5f;
+    --green-light:  #e8f5ee;
+    --green-border: #b7dfc8;
+    --green-hover:  #f0faf4;
+    --white:        #ffffff;
+    --gray-50:      #f8fafb;
+    --gray-100:     #f1f4f6;
+    --gray-200:     #e2e8ed;
+    --gray-300:     #c8d3db;
+    --gray-400:     #9eadb8;
+    --gray-500:     #6b7f8c;
+    --gray-700:     #374a55;
+    --gray-900:     #1a2830;
+    --red:          #dc2626;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,0.07);
+    --shadow-md:    0 4px 12px rgba(0,0,0,0.10);
+    --radius:       8px;
+    --radius-lg:    12px;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var(--gray-900); min-height: 100vh; font-size: 14px; }
 
-body { font-family: Arial, sans-serif; background: #525659; padding: 20px; }
+/* ── TOPNAV ── */
+.topnav {
+    background: var(--green-dark);
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 10px;
+    height: 56px; position: sticky; top: 0; z-index: 200;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.topnav .logo { font-weight: 700; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 8px; margin-right: auto; }
+.topnav .logo small { font-weight: 400; font-size: 11px; color: rgba(255,255,255,0.6); }
+.nav-btn {
+    padding: 7px 15px; font-size: 12px; font-weight: 500; font-family: inherit;
+    background: rgba(255,255,255,0.13); color: #fff;
+    border: 1px solid rgba(255,255,255,0.22); border-radius: 6px;
+    text-decoration: none; cursor: pointer; transition: background 0.15s;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.22); }
+.nav-btn.green { background: var(--green-mid); border-color: var(--green-mid); }
+.nav-btn.green:hover { background: #27ae60; }
 
 /* ── NAV ── */
 .nav {
@@ -57,16 +118,37 @@ body { font-family: Arial, sans-serif; background: #525659; padding: 20px; }
 }
 .nav .ml { margin-left: auto; }
 
-/* ── PAGE ── */
-.page {
+/* ── EACH PRINTED PAGE ── */
+.page-block {
     background: white; width: 1240px;
-    margin: 0 auto; padding: 18px;
+    margin: 0 auto 32px; padding: 18px 18px 10px 18px;
     box-shadow: 0 0 14px rgba(0,0,0,0.5);
+    /* A4 landscape at 96dpi minus margins: ~733px */
+    min-height: 733px;
+    display: flex; flex-direction: column;
+    page-break-after: always;
+    break-after: page;
 }
-.form-caption { font-size: 7pt; margin-bottom: 4px; color: #555; }
+.page-block:last-child {
+    page-break-after: auto;
+    break-after: auto;
+    margin-bottom: 0;
+}
+.page-footer {
+    margin-top: auto;
+    padding-top: 8px;
+}
+
+.form-caption { 
+  font-size: 7pt; 
+  margin-bottom: 4px; 
+  color: #555; 
+  line-height: 1.2;
+}
+.form-caption span { display: block; }
 
 /* ── HEADER ── */
-.header-wrap { display: grid; grid-template-columns: 210px 1fr; border: 1.5px solid #000; }
+.header-wrap { display: grid; grid-template-columns: 31% 1fr; border: 1.5px solid #000; }
 .nap-box {
     border-right: 1.5px solid #000; padding: 8px 10px;
     text-align: center; display: flex; align-items: center; justify-content: center;
@@ -79,7 +161,7 @@ body { font-family: Arial, sans-serif; background: #525659; padding: 20px; }
 .nap-sub   { font-size: 7.5pt; font-style: italic; margin: 3px 0 8px; }
 .nap-label { font-size: 8.5pt; font-weight: bold; text-align: center; line-height: 1.3; }
 
-.fields-area { display: grid; grid-template-columns: 2.4fr 1.8fr 1fr; }
+.fields-area { display: grid; grid-template-columns: 43.5% 30.4% 26.1%; }
 .f-cell {
     border-bottom: 1px solid #000; border-right: 1px solid #000;
     padding: 3px 5px; font-size: 7pt; min-height: 28px;
@@ -100,7 +182,7 @@ body { font-family: Arial, sans-serif; background: #525659; padding: 20px; }
     font-size: 6.8pt; vertical-align: top; text-align: center; overflow: hidden;
 }
 .nap-table th { background: #f0f0f0; font-weight: bold; line-height: 1.15; vertical-align: middle; }
-.nap-table td { min-height: 18px; height: 18px; }
+.nap-table td { min-height: 16px; height: 16px; line-height: 1.1; }
 
 .col-title  { width: 17%; } .col-period { width: 8%; } .col-vol  { width: 6%; }
 .col-med    { width: 7%;  } .col-rest   { width: 8%; } .col-loc  { width: 9%; }
@@ -117,43 +199,64 @@ td.title-cell { text-align: left; padding-left: 4px; }
 .page-num { font-size: 6.5pt; text-align: right; padding: 3px 5px 0; }
 
 /* ── FOOTER ── */
-.leg { font-size: 7pt; }
+.leg { font-size: 7pt; padding-left: 0; }
 .leg-title { font-weight: bold; font-size: 7.5pt; margin-bottom: 6px; text-decoration: underline; }
 .leg table { border-collapse: collapse; }
 .leg td { padding: 4px 16px 4px 0; font-size: 6.8pt; vertical-align: top; }
 .leg .lk { font-weight: bold; white-space: nowrap; padding-right: 24px; }
-.sig { font-size: 7.5pt; padding: 0 10px; text-align: center; }
-.sig .sh { font-weight: bold; margin-bottom: 24px; }
-.sig .sl { border-bottom: 1px solid #000; margin-bottom: 3px; }
+.sig { font-size: 7.5pt; padding: 0; text-align: center; }
+.sig .sh { font-weight: bold; margin-bottom: 20px; }
+.sig .sl { border-bottom: 1px solid #000; margin-bottom: 3px; width: 55%; margin-left: auto; margin-right: auto; }
 .sig .sn { font-weight: bold; }
 .sig .sp { font-size: 6.8pt; }
 
 @media print {
     body { background: none; padding: 0; }
-    .page { box-shadow: none; width: 100%; padding: 10px; }
-    .nav { display: none !important; }
+    .topnav, .nav { display: none !important; }
+    .page-block {
+        box-shadow: none;
+        width: 100%;
+        padding: 8px 8px 8px 8px;
+        margin: 0;
+        /* A4 landscape (210mm) minus 8mm top+bottom margins = 194mm */
+        height: 194mm;
+        min-height: unset;
+        page-break-after: always;
+        break-after: page;
+    }
+    .page-block:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
     @page { size: A4 landscape; margin: 8mm; }
 }
 </style>
 </head>
 <body>
 
-<div class="nav">
-    <a href="index.php" class="btn-back">← Back to Entry Form</a>
-    <button class="btn-print" onclick="window.print()">🖨 Print / Save PDF</button>
-    <label class="ml" for="hsel">View Header:</label>
-    <select id="hsel" onchange="if(this.value!==undefined)location='records_table.php'+(this.value?'?header_id='+this.value:'')">
-        <option value="">All Records</option>
-        <?php foreach ($all_hdrs as $h): ?>
-            <option value="<?= $h['id'] ?>" <?= $header_id == $h['id'] ? 'selected' : '' ?>>
-                <?= htmlspecialchars($h['department_division']) ?> – <?= htmlspecialchars($h['section_unit']) ?> (<?= $h['date_prepared'] ?>)
-            </option>
-        <?php endforeach; ?>
-    </select>
+<?php if (isset($_GET['print']) && $_GET['print'] == '1'): ?>
+<script>
+window.onload = function() {
+    setTimeout(function() { window.print(); }, 500);
+};
+</script>
+<?php endif; ?>
+
+<!-- TOPNAV -->
+<div class="topnav">
+    <div class="logo">📋 NAP Records <small>Inventory &amp; Appraisal System</small></div>
+    <a href="index.php" class="nav-btn">← Back to Entry Form</a>
+    <a href="records_table.php?header_id=<?= $header_id ?>&print=1" target="_blank" class="nav-btn green">🖨 Print / Save PDF</a>
 </div>
 
-<div class="page">
-    <div class="form-caption">NAP Records Inventory and Appraisal Form — 2023</div>
+<?php foreach ($chunks as $page_idx => $page_records):
+    $page_num   = $page_idx + 1;
+    $row_count  = count($page_records);
+    $empty_rows = $ROWS_PER_PAGE - $row_count;
+?>
+<!-- ════════════════ PAGE <?= $page_num ?> ════════════════ -->
+<div class="page-block">
+    <div class="form-caption">NAP Records Inventory and Appraisal Form <span>2023</span></div>
 
     <!-- HEADER -->
     <div class="header-wrap">
@@ -200,13 +303,12 @@ td.title-cell { text-align: left; padding-left: 4px; }
             </tr>
         </thead>
         <tbody>
-            <?php
-            $cnt = 0;
-            if ($records) while ($row = $records->fetch_assoc()): $cnt++;
-            ?>
+            <?php foreach ($page_records as $row): ?>
             <tr>
-                <td class="title-cell"><strong><?= htmlspecialchars($row['records_series_title']) ?></strong><br>
-                    <span style="font-size:6.2pt;"><?= htmlspecialchars($row['records_description']) ?></span></td>
+                <td class="title-cell">
+                    <strong><?= htmlspecialchars($row['records_series_title']) ?></strong><br>
+                    <span style="font-size:6.2pt;"><?= htmlspecialchars($row['records_description']) ?></span>
+                </td>
                 <td><?= htmlspecialchars($row['period_covered_from']) ?></td>
                 <td><?= htmlspecialchars($row['volume']) ?></td>
                 <td><?= htmlspecialchars($row['records_medium']) ?></td>
@@ -223,8 +325,8 @@ td.title-cell { text-align: left; padding-left: 4px; }
                 </div></td>
                 <td><?= htmlspecialchars($row['disposition_provision']) ?></td>
             </tr>
-            <?php endwhile; ?>
-            <?php for ($i = $cnt; $i < 18; $i++): ?>
+            <?php endforeach; ?>
+            <?php for ($i = 0; $i < $empty_rows; $i++): ?>
             <tr>
                 <td class="title-cell">&nbsp;</td><td></td><td></td><td></td><td></td><td></td>
                 <td></td><td></td><td></td><td></td>
@@ -236,31 +338,44 @@ td.title-cell { text-align: left; padding-left: 4px; }
     </table>
 
     <!-- FOOTER -->
-    <div style="margin-top:12px;">
+    <div class="page-footer">
         <div class="leg" style="margin-bottom:16px;">
             <div class="leg-title">LEGEND:</div>
-            <table><tr>
+            <table style="margin-left:80px;"><tr>
                 <td class="lk">TIME VALUE:</td>
-                <td>T – Temporary</td><td style="padding-left:12px;">P – Permanent</td>
+                <td>T – Temporary</td><td style="padding-left:24px;">P – Permanent</td>
             </tr><tr>
-                <td class="lk">UTILITY VALUE:</td>
-                <td>Adm – Administrative</td><td style="padding-left:12px;">F – Fiscal</td>
-            </tr><tr>
-                <td></td><td>L – Legal</td><td style="padding-left:12px;">Arc – Archival</td>
+                <td class="lk" style="width:150px;">UTILITY VALUE:</td>
+                <td>Adm – Administrative</td>
+                <td style="padding-left:24px;">F – Fiscal</td>
+                <td style="padding-left:24px;">L – Legal</td>
+                <td style="padding-left:24px;">Arc – Archival</td>
             </tr></table>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 20px;">
-            <div class="sig"><div class="sh">PREPARED BY:</div><div class="sl"></div>
-                <div class="sn"><?= htmlspecialchars($header_data['person_incharge'] ?? 'ARTHUR S. AGUSTIN Information Technology Officer 1') ?></div>
-                <div class="sp">Name and Position</div></div>
-            <div class="sig"><div class="sh">ASSISTED BY:</div><div class="sl"></div>
-                <div class="sp">NAP Records Management Analyst</div></div>
-            <div class="sig"><div class="sh">APPROVED BY:</div><div class="sl"></div>
-                <div class="sp">Chief of the Division/Department</div></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;">
+            <div class="sig">
+                <div class="sh" style="margin-left:-280px;">PREPARED BY:</div>
+                <div class="sn"><?= htmlspecialchars($header_data['person_incharge'] ?? ($_SESSION['full_name'] ?? 'Administrator')) ?></div>
+                <div class="sl"></div>
+                <div class="sp">Name and Position</div>
+            </div>
+            <div class="sig">
+                <div class="sh" style="margin-left:-280px;">ASSISTED BY:</div>
+                <div class="sn"><?= htmlspecialchars($header_data['assisted_by'] ?? '') ?></div>
+                <div class="sl"></div>
+                <div class="sp">Name and Position</div>
+            </div>
+            <div class="sig">
+                <div class="sh" style="margin-left:-280px;">APPROVED BY:</div>
+                <div class="sl"></div>
+                <div class="sp">Chief of the Division/Department</div>
+            </div>
         </div>
     </div>
-    <div class="page-num">Page ___ of ___ Pages</div>
-</div>
+    <div class="page-num">Page <?= $page_num ?> of <?= $total_pages ?> Pages</div>
+</div><!-- end page-block -->
+
+<?php endforeach; ?>
 
 </body>
 </html>
