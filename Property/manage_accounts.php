@@ -2,7 +2,7 @@
 session_start();
 
 // Check if user is logged in and is admin
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true || $_SESSION['role'] !== 'admin') {
+if (!isset($_SESSION['property_loggedin']) || $_SESSION['property_loggedin'] !== true || $_SESSION['property_role'] !== 'admin') {
     header("location: login.php");
     exit;
 }
@@ -15,7 +15,7 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-$current_user_id = $_SESSION['user_id'];
+$current_user_id = $_SESSION['property_user_id'];
 $result = $conn->query("SELECT role FROM property_users WHERE id = $current_user_id");
 $current_user = $result->fetch_assoc();
 

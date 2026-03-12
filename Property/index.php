@@ -449,7 +449,7 @@ $filtertext="";
     <!-- ═══ SIDEBAR ═══ -->
     <aside class="sidebar" id="sidebar">
 
-        <div class="sidebar-brand">
+        <div class="sidebar-brand" onclick="document.querySelector('.nav-link').click()" style="cursor: pointer;">
             <div class="brand-logo-wrap">
                 <div class="brand-logo"><img src="PSAU_10.jpg" alt="PSAU"></div>
                 <div>
