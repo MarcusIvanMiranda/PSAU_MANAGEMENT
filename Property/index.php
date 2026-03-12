@@ -4,23 +4,18 @@ if (!isset($_SESSION['property_loggedin']) || $_SESSION['property_loggedin'] !==
     header("location: login.php");
     exit;
 }
+
 include "connect.php";
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-//$servername = "";
-//$username = "";
-//$password = "";
-//$dbname = "";
-$datatable = "property_list"; // MySQL table name
-$results_per_page = 20; // number of results per page
- 
-// Create connection
-$conn = new mysqli($servername, $username, $password, $dbname);
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-$filtertext="";
+
+// Get user data for sidebar
+$user_initial = strtoupper(substr($_SESSION['property_full_name'], 0, 1));
+$user_name = htmlspecialchars($_SESSION['property_full_name']);
+$user_role = ucfirst($_SESSION['property_role']);
+$user_office = htmlspecialchars($_SESSION['property_office'] ?? '');
+$user_members = htmlspecialchars($_SESSION['property_members'] ?? '');
+$is_admin = $_SESSION['property_role'] === 'admin';
 
 // Handle form submission for adding new property
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_property'])) {
@@ -72,7 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_property'])) {
 
     if (mysqli_query($conn, $sql)) {
         $success_message = "Property added successfully!";
-        // Clear form data by redirecting to prevent form resubmission
         echo "<script>
             setTimeout(function() {
                 window.location.href = 'index.php?success=1';
@@ -134,683 +128,473 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_maintenance_cost'
 if (isset($_GET['maintenance_success']) && $_GET['maintenance_success'] == '1') {
     $success_message = "Maintenance cost added successfully!";
 }
-?>
 
+$datatable = "property_list"; // MySQL table name
+$results_per_page = 20; // number of results per page
+ 
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+$filtertext="";
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PSAU Property Management System</title>
+    <title>Dashboard - PSAU Property Management System</title>
     <link rel="icon" href="PSAU.ico">
     <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        .tooltip {
+        :root {
+            --green-950: #0d2b1e;
+            --green-900: #1e5a3d;
+            --green-800: #2d7a4f;
+            --green-700: #3a9160;
+            --green-600: #4aab72;
+            --green-200: #a7d4b8;
+            --green-100: #d4edde;
+            --green-50:  #eef8f2;
+            --gold:      #c9a84c;
+            --gold-light:#e8cc82;
+            --white:     #ffffff;
+            --gray-50:   #f8f9f8;
+            --gray-100:  #f0f2f0;
+            --gray-200:  #e2e5e2;
+            --gray-300:  #cdd1cd;
+            --gray-400:  #9bab9e;
+            --gray-500:  #6d7d70;
+            --gray-600:  #586a5c;
+            --gray-700:  #3d4f40;
+            --gray-900:  #1a2a1c;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--gray-50);
+            min-height: 100vh;
+            overflow: hidden;
+            color: var(--gray-700);
+        }
+
+        /* ══════════════════ LAYOUT ══════════════════ */
+        .shell { display: flex; height: 100vh; }
+
+        /* ══════════════════ SIDEBAR ══════════════════ */
+        .sidebar {
+            width: 256px;
+            flex-shrink: 0;
+            background: var(--green-950);
+            display: flex;
+            flex-direction: column;
             position: relative;
-            display: inline-block;
-            cursor: help;
+            z-index: 200;
+            transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+            box-shadow: 4px 0 24px rgba(0,0,0,0.18);
         }
-        
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 300px;
-            background-color: #333;
-            color: #fff;
-            text-align: left;
-            border-radius: 6px;
-            padding: 10px;
-            position: absolute;
-            z-index: 1000;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -150px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            max-height: 200px;
-            overflow-y: auto;
+
+        /* Sidebar subtle grid */
+        .sidebar::before {
+            content: '';
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+            background-size: 32px 32px;
+            pointer-events: none;
         }
-        
-        .tooltip .tooltiptext::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #333 transparent transparent transparent;
+
+        /* Sidebar brand */
+        .sidebar-brand {
+            padding: 24px 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            position: relative; z-index: 1;
         }
-        
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
+        .brand-logo-wrap {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 0;
         }
-        
-        .truncate-text {
-            color: #0066cc;
-            text-decoration: underline dotted;
+        .brand-logo {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: var(--white); padding: 3px;
+            box-shadow: 0 0 0 2px rgba(201,168,76,0.4), 0 4px 12px rgba(0,0,0,0.3);
+            flex-shrink: 0;
         }
-        
-        .truncate-text:hover {
-            color: #004499;
+        .brand-logo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .brand-text-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.0625rem; font-weight: 700;
+            color: var(--white); line-height: 1.2;
         }
+        .brand-text-sub {
+            font-size: 0.6875rem; font-weight: 400;
+            color: rgba(255,255,255,0.7); letter-spacing: 0.04em;
+            margin-top: 2px;
+        }
+
+        /* Nav sections */
+        .sidebar-nav {
+            flex: 1; overflow-y: auto; padding: 16px 0 12px;
+            position: relative; z-index: 1;
+        }
+        .sidebar-nav::-webkit-scrollbar { width: 4px; }
+        .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+
+        .nav-section-label {
+            padding: 10px 20px 6px;
+            font-size: 0.625rem; font-weight: 700;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .nav-link {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 20px;
+            color: rgba(255,255,255,0.85);
+            text-decoration: none; background: none; border: none;
+            width: 100%; text-align: left; cursor: pointer;
+            font-family: 'DM Sans', sans-serif; font-size: 0.875rem; font-weight: 500;
+            border-left: 2px solid transparent;
+            transition: all 0.18s ease;
+            position: relative;
+        }
+        .nav-link:hover {
+            color: rgba(255,255,255,1);
+            background: rgba(255,255,255,0.08);
+            border-left-color: rgba(255,255,255,0.3);
+        }
+        .nav-link.active {
+            color: var(--white);
+            background: linear-gradient(90deg, rgba(74,171,114,0.2) 0%, rgba(74,171,114,0.05) 100%);
+            border-left-color: var(--green-600);
+            font-weight: 600;
+        }
+        .nav-link.active .nav-icon { color: var(--green-600); }
+
+        .nav-icon {
+            width: 18px; height: 18px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.7);
+            transition: color 0.18s;
+        }
+        .nav-icon svg { width: 16px; height: 16px; }
+        .nav-link:hover .nav-icon { color: rgba(255,255,255,0.95); }
+
+        /* Sidebar footer */
+        .sidebar-footer {
+            padding: 14px 20px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            position: relative; z-index: 1;
+        }
+        .sidebar-user {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: 10px;
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 10px;
+        }
+        .sidebar-avatar {
+            width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--green-700), var(--green-600));
+            color: #fff; font-weight: 700; font-size: 0.8125rem;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 6px rgba(30,90,61,0.4);
+        }
+        .sidebar-user-name { font-size: 0.8125rem; font-weight: 600; color: rgba(255,255,255,0.95); line-height: 1.2; }
+        .sidebar-user-role { font-size: 0.6875rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.06em; }
+        .btn-logout {
+            display: flex; align-items: center; gap: 8px; width: 100%;
+            padding: 9px 14px; border-radius: 9px; border: 1px solid rgba(239,68,68,0.25);
+            background: rgba(239,68,68,0.08); color: rgba(239,68,68,0.7);
+            font-family: 'DM Sans', sans-serif; font-size: 0.8125rem; font-weight: 600;
+            cursor: pointer; transition: all 0.18s ease;
+        }
+        .btn-logout:hover { background: rgba(239,68,68,0.15); color: #f87171; border-color: rgba(239,68,68,0.4); }
+        .btn-logout svg { width: 14px; height: 14px; }
+
+        /* ══════════════════ MAIN ══════════════════ */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+        /* Top bar */
+        .topbar {
+            height: 58px; flex-shrink: 0;
+            background: rgba(255,255,255,0.96); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--gray-200);
+            padding: 0 28px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+            position: relative; z-index: 100;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .mobile-toggle {
+            display: none; background: none; border: 1px solid var(--gray-200);
+            border-radius: 8px; padding: 7px; cursor: pointer; color: var(--gray-500);
+            transition: all 0.15s;
+        }
+        .mobile-toggle:hover { background: var(--gray-100); color: var(--gray-700); }
+        .mobile-toggle svg { width: 18px; height: 18px; display: block; }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.25rem; font-weight: 700;
+            color: var(--green-900);
+        }
+
+        .topbar-right { display: flex; align-items: center; gap: 16px; }
+        .clock {
+            font-size: 0.8125rem; font-weight: 500; color: var(--gray-400);
+            letter-spacing: 0.01em;
+        }
+        .topbar-divider { width: 1px; height: 24px; background: var(--gray-200); }
+
+        /* Topbar user chip */
+        .user-chip {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 12px 6px 6px; border-radius: 999px;
+            border: 1px solid var(--gray-200); background: var(--white);
+            cursor: pointer; transition: all 0.18s ease;
+            position: relative;
+        }
+        .user-chip:hover { border-color: var(--green-200); box-shadow: 0 2px 8px rgba(30,90,61,0.08); }
+        .chip-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--green-800), var(--green-600));
+            color: #fff; font-weight: 700; font-size: 0.75rem;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(30,90,61,0.3);
+        }
+        .chip-name { font-size: 0.8125rem; font-weight: 600; color: var(--gray-900); }
+        .chip-role { font-size: 0.6875rem; color: var(--gray-400); }
+        .chip-caret { color: var(--gray-400); margin-left: 2px; }
+        .chip-caret svg { width: 14px; height: 14px; }
+
+        /* Dropdown */
+        .user-dropdown {
+            display: none; position: absolute;
+            top: calc(100% + 8px); right: 0;
+            min-width: 160px;
+            background: var(--white); border: 1px solid var(--gray-200);
+            border-radius: 11px; box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+            overflow: hidden; z-index: 9999;
+        }
+        .user-dropdown.show { display: block; }
+        .dropdown-item {
+            display: flex; align-items: center; gap: 9px;
+            padding: 10px 14px; font-size: 0.875rem; font-weight: 500;
+            color: var(--gray-700); cursor: pointer; border: none;
+            background: none; width: 100%; text-align: left;
+            transition: background 0.15s, color 0.15s;
+        }
+        .dropdown-item:hover { background: #fef2f2; color: #dc2626; }
+        .dropdown-item svg { width: 14px; height: 14px; }
+
+        /* Content area */
+        .content-area { flex: 1; padding: 20px 24px; overflow: hidden; display: flex; flex-direction: column; }
+
+        .iframe-wrap {
+            flex: 1; border-radius: 14px; overflow: hidden;
+            border: 1px solid var(--gray-200);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            position: relative;
+        }
+        .iframe-wrap::before {
+            content: ''; position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--green-900), var(--green-700), var(--green-600));
+            z-index: 2;
+        }
+        .content-frame { width: 100%; height: 100%; border: none; display: block; transition: opacity 0.2s ease; }
+
+        /* Mobile overlay */
+        .mob-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(10,20,14,0.6); backdrop-filter: blur(2px);
+            z-index: 150;
+        }
+        .mob-overlay.show { display: block; }
+
+        /* ══════════════════ RESPONSIVE ══════════════════ */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed; top: 0; left: 0; height: 100vh;
+                transform: translateX(-100%);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .mobile-toggle { display: flex; }
+            .content-area { padding: 14px; }
+            .clock { display: none; }
+            .topbar-divider { display: none; }
+            .chip-name, .chip-role { display: none; }
+            .chip-caret { display: none; }
+            .user-chip { padding: 4px; }
+        }
+
+        /* ══════════════════ Scrollbar ══════════════════ */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--green-600); border-radius: 99px; }
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="header-content">
-            <img src="PSAU_10.jpg" alt="PSAU Logo" class="header-logo">
-            <div class="header-title">
-                <h1>PAMPANGA STATE AGRICULTURAL UNIVERSITY</h1>
-                <h2>Property Management System</h2>
-            </div>
-            <div class="header-user">
-                <div style="text-align: right; margin-bottom: 0.5rem;">
-                    <span class="user-info">Welcome, <?php echo htmlspecialchars($_SESSION['property_full_name']); ?></span>
-                    <?php if (!empty($_SESSION['property_office'])): ?>
-                        <div class="user-role">
-                            🏢 <?php echo htmlspecialchars($_SESSION['property_office']); ?>
-                            <?php if (!empty($_SESSION['property_members'])): ?>
-                                | 👑 <?php echo htmlspecialchars($_SESSION['property_members']); ?>
-                            <?php endif; ?>
-                        </div>
-                    <?php endif; ?>
+
+<div class="mob-overlay" id="mobOverlay" onclick="closeSidebar()"></div>
+
+<div class="shell">
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="sidebar-brand">
+            <div class="brand-logo-wrap">
+                <div class="brand-logo"><img src="PSAU_10.jpg" alt="PSAU"></div>
+                <div>
+                    <div class="brand-text-title">PSAU Property</div>
+                    <div class="brand-text-sub">Management System</div>
                 </div>
-                <?php if ($_SESSION['property_role'] === 'admin'): ?>
-                    <a href="manage_accounts.php" class="btn btn-primary" style="margin-right: 0.5rem;">👥 Manage Accounts</a>
-                <?php endif; ?>
-                <a href="logout.php" class="btn btn-secondary">Logout</a>
             </div>
         </div>
-    </header>
 
-    <div class="container">
-        <section class="search-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <form class="search-form" action='index.php' method='GET' style="flex: 1; margin-right: 1rem;">
-                    <input 
-                        type="text" 
-                        name="filtertext" 
-                        class="search-input" 
-                        placeholder="Search by Property No, Tag, Item, or Description..." 
-                        value="<?php echo isset($_GET['filtertext']) ? htmlspecialchars($_GET['filtertext']) : ''; ?>"
-                    >
-                    <button type="submit" class="btn btn-primary">
-                        🔍 Search Properties
-                    </button>
-                </form>
-                <button onclick="openAddPropertyModal()" class="btn btn-success">
-                    ➕ Add New Property
+        <nav class="sidebar-nav">
+
+            <div class="nav-section-label">Main</div>
+
+            <button class="nav-link active" onclick="loadPage('property_list.php', this)">
+                <span class="nav-icon">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                </span>
+                Property List
+            </button>
+
+            
+            <?php if ($is_admin): ?>
+            <div class="nav-section-label">Admin</div>
+
+            <button class="nav-link" onclick="loadPage('manage_accounts.php', this)">
+                <span class="nav-icon">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </span>
+                Manage Accounts
+            </button>
+            <?php endif; ?>
+
+            <div class="nav-section-label">System</div>
+
+            <button class="nav-link" onclick="loadPage('about.php', this)">
+                <span class="nav-icon">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+                About
+            </button>
+
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-avatar"><?= $user_initial ?></div>
+                <div>
+                    <div class="sidebar-user-name"><?= $user_name ?></div>
+                    <div class="sidebar-user-role"><?= $user_role ?></div>
+                </div>
+            </div>
+            <button class="btn-logout" onclick="window.location.href='logout.php'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Sign Out
+            </button>
+        </div>
+    </aside>
+
+    <!-- ═══ MAIN ═══ -->
+    <main class="main">
+
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="mobile-toggle" onclick="toggleSidebar()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
+                <h1 class="page-title" id="pageTitle">Property List</h1>
             </div>
-        </section>
-
-        <?php if (isset($success_message)): ?>
-            <div class="alert alert-success" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #c3e6cb;">
-                <?php echo $success_message; ?>
-            </div>
-        <?php endif; ?>
-
-        <?php if (isset($error_message)): ?>
-            <div class="alert alert-error" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #f5c6cb;">
-                <?php echo $error_message; ?>
-            </div>
-        <?php endif; ?>
-
-        <!-- Add Property Modal -->
-        <div id="addPropertyModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-            <div class="modal-content" style="background-color: #fefefe; margin: 2% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
-                    <h2 style="margin: 0; color: #333;">Add New Property</h2>
-                    <span class="close" onclick="closeAddPropertyModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-                </div>
-                
-                <form method="POST" action="" id="addPropertyForm">
-                    <input type="hidden" name="add_property" value="1">
-                    
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_no" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property No:</label>
-                            <input type="text" id="modal_property_no" name="property_no" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_tag" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Tag:</label>
-                            <input type="text" id="modal_property_tag" name="property_tag" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="modal_property_item" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Item:</label>
-                        <input type="text" id="modal_property_item" name="property_item" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="modal_property_description" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Description:</label>
-                        <textarea id="modal_property_description" name="property_description" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_model_number" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Model Number:</label>
-                            <input type="text" id="modal_property_model_number" name="property_model_number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_serial_number" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Serial Number:</label>
-                            <input type="text" id="modal_property_serial_number" name="property_serial_number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_value" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Value:</label>
-                            <input type="text" id="modal_property_value" name="property_value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_acquisition_date" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Acquisition Date:</label>
-                            <input type="date" id="modal_property_acquisition_date" name="property_acquisition_date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_accountable_person" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Accountable Person:</label>
-                            <input type="text" id="modal_property_accountable_person" name="property_accountable_person" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_actual_location" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Actual Location:</label>
-                            <input type="text" id="modal_property_actual_location" name="property_actual_location" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="modal_property_remarks" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Remarks:</label>
-                        <textarea id="modal_property_remarks" name="property_remarks" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_counted" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Counted:</label>
-                            <select id="modal_property_counted" name="property_counted" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                                <option value="">Select...</option>
-                                <option value="Yes">Yes</option>
-                                <option value="No">No</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_condition" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Condition:</label>
-                            <select id="modal_property_condition" name="property_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                                <option value="">Select...</option>
-                                <option value="Good">Good</option>
-                                <option value="Fair">Fair</option>
-                                <option value="Poor">Poor</option>
-                                <option value="Damaged">Damaged</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_validated" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Validated:</label>
-                            <select id="modal_property_validated" name="property_validated" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                                <option value="">Select...</option>
-                                <option value="Yes">Yes</option>
-                                <option value="No">No</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_status" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Status:</label>
-                            <select id="modal_property_status" name="property_status" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                                <option value="">Select...</option>
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                                <option value="Disposed">Disposed</option>
-                                <option value="Lost">Lost</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_fund" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Fund:</label>
-                            <input type="text" id="modal_property_fund" name="property_fund" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_year_purchased" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Year Purchased:</label>
-                            <input type="text" id="modal_property_year_purchased" name="property_year_purchased" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_sm_group_account" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">SM Group Account:</label>
-                            <input type="text" id="modal_property_sm_group_account" name="property_sm_group_account" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_gl_account" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">GL Account:</label>
-                            <input type="text" id="modal_property_gl_account" name="property_gl_account" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 20px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_number" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Number:</label>
-                            <input type="text" id="modal_property_number" name="property_number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="modal_property_loc" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Location:</label>
-                            <input type="text" id="modal_property_loc" name="property_loc" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div style="text-align: center; padding-top: 15px; border-top: 1px solid #ddd;">
-                        <button type="submit" class="btn btn-primary" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px;">Add Property</button>
-                        <button type="button" onclick="closeAddPropertyModal()" class="btn btn-secondary" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Cancel</button>
-                    </div>
-                </form>
+            <div class="topbar-right">
+                <span class="clock" id="clock"></span>
             </div>
         </div>
 
-        <!-- Maintenance Cost Modal -->
-        <div id="maintenanceCostModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-            <div class="modal-content" style="background-color: #fefefe; margin: 2% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
-                    <h2 style="margin: 0; color: #333;">Add Repair/Maintenance Cost</h2>
-                    <span class="close" onclick="closeMaintenanceCostModal()" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-                </div>
-                
-                <form method="POST" action="" id="maintenanceCostForm">
-                    <input type="hidden" name="add_maintenance_cost" value="1">
-                    <input type="hidden" id="maintenance_property_id" name="property_id">
-                    <input type="hidden" id="maintenance_property_tag" name="property_tag">
-                    
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="maintenance_cost_type" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Cost Type:</label>
-                            <select id="maintenance_cost_type" name="cost_type" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                                <option value="">Select Type...</option>
-                                <option value="repair">Repair</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="replace">Replace Parts</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="maintenance_cost_amount" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Cost Amount (₱):</label>
-                            <input type="number" id="maintenance_cost_amount" name="cost_amount" step="0.01" min="0" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="maintenance_cost_description" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Description:</label>
-                        <textarea id="maintenance_cost_description" name="cost_description" rows="3" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="maintenance_cost_date" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Cost Date:</label>
-                            <input type="date" id="maintenance_cost_date" name="cost_date" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="maintenance_performed_by" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Performed By:</label>
-                            <input type="text" id="maintenance_performed_by" name="performed_by" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <div class="form-group" style="flex: 1;">
-                            <label for="maintenance_supplier_vendor" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Supplier/Vendor:</label>
-                            <input type="text" id="maintenance_supplier_vendor" name="supplier_vendor" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="maintenance_invoice_reference" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Invoice Reference:</label>
-                            <input type="text" id="maintenance_invoice_reference" name="invoice_reference" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        </div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label for="maintenance_remarks" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Remarks:</label>
-                        <textarea id="maintenance_remarks" name="remarks" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
-                    </div>
-
-                    <div style="text-align: center; padding-top: 15px; border-top: 1px solid #ddd;">
-                        <button type="submit" class="btn btn-primary" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px;">Add Cost</button>
-                        <button type="button" onclick="closeMaintenanceCostModal()" class="btn btn-secondary" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Cancel</button>
-                    </div>
-                </form>
+        <!-- Content -->
+        <div class="content-area">
+            <div class="iframe-wrap">
+                <iframe src="" class="content-frame" id="contentFrame" style="opacity:0;"></iframe>
             </div>
         </div>
 
-        <script>
-        function openAddPropertyModal() {
-            document.getElementById('addPropertyModal').style.display = 'block';
-            document.body.style.overflow = 'hidden';
-        }
+    </main>
+</div>
 
-        function closeAddPropertyModal() {
-            document.getElementById('addPropertyModal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-            document.getElementById('addPropertyForm').reset();
-        }
+<script>
+    const PAGE_TITLES = {
+        'property_list.php':      'Property List',
+        'manage_accounts.php':     'Manage Accounts',
+        'about.php':               'About',
+    };
 
-        function openMaintenanceCostModal(propertyId, propertyTag) {
-            document.getElementById('maintenance_property_id').value = propertyId;
-            document.getElementById('maintenance_property_tag').value = propertyTag;
-            document.getElementById('maintenanceCostModal').style.display = 'block';
-            document.body.style.overflow = 'hidden';
-        }
+    function loadPage(url, el) {
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        el.classList.add('active');
+        localStorage.setItem('activePage', url);
 
-        function closeMaintenanceCostModal() {
-            document.getElementById('maintenanceCostModal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-            document.getElementById('maintenanceCostForm').reset();
-        }
+        const frame = document.getElementById('contentFrame');
+        frame.style.opacity = '0';
+        frame.src = url;
+        frame.onload = () => frame.style.opacity = '1';
 
-        // Close modal when clicking outside of it
-        window.onclick = function(event) {
-            var addModal = document.getElementById('addPropertyModal');
-            var maintenanceModal = document.getElementById('maintenanceCostModal');
-            if (event.target == addModal) {
-                closeAddPropertyModal();
-            }
-            if (event.target == maintenanceModal) {
-                closeMaintenanceCostModal();
-            }
-        }
+        document.getElementById('pageTitle').textContent = PAGE_TITLES[url] || 'Property List';
 
-        // Close modal on Escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closeAddPropertyModal();
-                closeMaintenanceCostModal();
-            }
+        if (window.innerWidth <= 768) closeSidebar();
+    }
+
+    function restorePage() {
+        const saved = localStorage.getItem('activePage') || 'property_list.php';
+        const link  = document.querySelector(`.nav-link[onclick*="${saved}"]`);
+        if (link) {
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            document.getElementById('pageTitle').textContent = PAGE_TITLES[saved] || 'Property List';
+        }
+        const frame = document.getElementById('contentFrame');
+        frame.src = saved;
+        frame.onload = () => frame.style.opacity = '1';
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('mobOverlay').classList.toggle('show');
+    }
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('mobOverlay').classList.remove('show');
+    }
+
+    
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
         });
+    }
+    updateClock();
+    setInterval(updateClock, 60000);
 
-        // Check if page loaded with success parameter and ensure modal is closed
-        window.onload = function() {
-            var urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('success') || urlParams.has('maintenance_success')) {
-                closeAddPropertyModal();
-                closeMaintenanceCostModal();
-                // Remove the success parameter from URL without page refresh
-                var newUrl = window.location.pathname;
-                window.history.replaceState({}, '', newUrl);
-            }
-        };
-        </script>
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) closeSidebar();
+    });
 
-<?php
-$filtertext = isset($_GET['filtertext']) ? trim($_GET['filtertext']) : '';
-if (isset($_GET["page"])) { $page = $_GET["page"]; } else { $page=1; };
-$start_from = ($page-1) * $results_per_page;
-
-// Build search condition
-$search_condition = "";
-if (!empty($filtertext)) {
-    $search_condition = " WHERE (property_no LIKE '%$filtertext%' OR property_tag LIKE '%$filtertext%' OR property_item LIKE '%$filtertext%' OR property_description LIKE '%$filtertext%')";
-}
-
-$sql = "SELECT * FROM ".$datatable.$search_condition." ORDER BY property_no DESC LIMIT $start_from, ".$results_per_page;
-$rs_result = $conn->query($sql);
-
-// Get total count for pagination
-$count_sql = "SELECT COUNT(*) AS total FROM ".$datatable.$search_condition;
-$result = $conn->query($count_sql);
-$row = $result->fetch_assoc();
-$total_pages = ceil($row["total"] / $results_per_page);
-?>
-
-        <?php if ($total_pages > 1): ?>
-        <div class="pagination">
-            <?php
-            // Previous button
-            if ($page > 1):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $page - 1; ?>' class="nav-btn">
-                    &lt;
-                </a>
-            <?php endif; ?>
-            
-            <?php
-            // Calculate page range (show max 10 pages)
-            $max_pages = 10;
-            $start_page = max(1, $page - floor($max_pages / 2));
-            $end_page = min($total_pages, $start_page + $max_pages - 1);
-            
-            // Adjust start page if we're near the end
-            if ($end_page - $start_page < $max_pages - 1) {
-                $start_page = max(1, $end_page - $max_pages + 1);
-            }
-            
-            // Show first page if not in range
-            if ($start_page > 1):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=1' 
-                   class='<?php if (1==$page) echo "curPage"; ?>'>
-                    1
-                </a>
-                <?php if ($start_page > 2): ?>
-                    <span class="pagination-dots">...</span>
-                <?php endif; ?>
-            <?php endif; ?>
-            
-            <?php
-            // Show page range
-            for ($i=$start_page; $i<=$end_page; $i++):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $i; ?>' 
-                   class='<?php if ($i==$page) echo "curPage"; ?>'>
-                    <?php echo $i; ?>
-                </a>
-            <?php endfor; ?>
-            
-            <?php
-            // Show last page if not in range
-            if ($end_page < $total_pages):
-                if ($end_page < $total_pages - 1):
-            ?>
-                    <span class="pagination-dots">...</span>
-                <?php endif; ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $total_pages; ?>' 
-                   class='<?php if ($total_pages==$page) echo "curPage"; ?>'>
-                    <?php echo $total_pages; ?>
-                </a>
-            <?php endif; ?>
-            
-            <?php
-            // Next button
-            if ($page < $total_pages):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $page + 1; ?>' class="nav-btn">
-                    &gt;
-                </a>
-            <?php endif; ?>
-            
-        </div>
-        <?php endif; ?>
-
-
-        <div class="table-container">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th style="text-align: center; width: 120px;">Actions</th>
-                        <th>Property #</th>
-                        <th>Property Tag</th>
-                        <th>Item</th>
-                        <th>Description</th>
-                        <th>Serial Number</th>
-                        <th>Value</th>
-                        <th>Addition Cost</th>
-                        <th>Acquisition Date</th>
-                        <th style="text-align: center;">Accountable Person</th>
-                        <th>Status</th>
-                        <th>Remarks</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if ($rs_result && $rs_result->num_rows > 0): ?>
-                        <?php while($row = $rs_result->fetch_assoc()): ?>
-                            <tr>
-                                <td>
-                                    <div class="action-buttons">
-                                        <form action='printqrnow.php' method='POST' target='_blank' style="display: inline;">
-                                            <button type='submit' name='RefID' value='<?php echo $row["property_tag"]; ?>' class="btn btn-success btn-sm">
-                                                 Print QR
-                                            </button>
-                                        </form>
-                                        <form action='propertydocument.php' method='GET' style="display: inline;">
-                                            <button type='submit' name='filtertext' value='<?php echo $row["property_tag"]; ?>' class="btn btn-primary btn-sm">
-                                                 View
-                                            </button>
-                                        </form>
-                                        <a href='maintenance_costs.php?property_tag=<?php echo urlencode($row["property_tag"]); ?>' class="btn btn-info btn-sm" style="background: #17a2b8; color: white; text-decoration: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; display: inline-block; text-align: center;">
-                                             View Costs
-                                        </a>
-                                        <button type='button' onclick='openMaintenanceCostModal(<?php echo $row["idproperty_list"]; ?>, "<?php echo htmlspecialchars($row["property_tag"]); ?>")' class="btn btn-warning btn-sm" style="background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                                             Add Cost
-                                        </button>
-                                    </div>
-                                </td>
-                                <td><?php echo htmlspecialchars($row["property_no"]); ?></td>
-                                <td><strong><?php echo htmlspecialchars($row["property_tag"]); ?></strong></td>
-                                <td><?php echo htmlspecialchars($row["property_item"]); ?></td>
-                                <td><?php 
-                                    $description = htmlspecialchars($row["property_description"] ?? '');
-                                    if (strlen($description) > 20) {
-                                        echo '<div class="tooltip">
-                                            <span class="truncate-text">' . substr($description, 0, 20) . '...</span>
-                                            <span class="tooltiptext">' . $description . '</span>
-                                        </div>';
-                                    } else {
-                                        echo $description;
-                                    }
-                                ?></td>
-                                <td><?php echo htmlspecialchars($row["property_serial_number"] ?? ''); ?></td>
-                                <td>₱<?php 
-                                    $propertyValue = $row["property_value"] ?? '0';
-                                    $cleanedValue = str_replace([',', ' '], '', $propertyValue); // Remove commas and spaces
-                                    if (is_numeric($cleanedValue)) {
-                                        echo number_format((float)$cleanedValue, 2); 
-                                    } else {
-                                        echo htmlspecialchars($propertyValue); // Display as is if not a valid number
-                                    }
-                                ?></td>
-                                <td>₱<?php 
-                                    $additionCost = $row["addition_cost"] ?? '0';
-                                    $cleanedCost = str_replace([',', ' '], '', $additionCost); // Remove commas and spaces
-                                    if (is_numeric($cleanedCost)) {
-                                        echo number_format((float)$cleanedCost, 2); 
-                                    } else {
-                                        echo htmlspecialchars($additionCost); // Display as is if not a valid number
-                                    }
-                                ?></td>
-                                <td><?php echo htmlspecialchars($row["property_acquisition_date"] ?? ''); ?></td>
-                                <td style="text-align: center;"><?php echo htmlspecialchars($row["property_accountable_person"] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row["property_status"] ?? ''); ?></td>
-                                <td><?php 
-                                    $remarks = htmlspecialchars($row["property_remarks"] ?? '');
-                                    if (strlen($remarks) > 20) {
-                                        echo '<div class="tooltip">
-                                            <span class="truncate-text">' . substr($remarks, 0, 20) . '...</span>
-                                            <span class="tooltiptext">' . $remarks . '</span>
-                                        </div>';
-                                    } else {
-                                        echo $remarks;
-                                    }
-                                ?></td>
-                            </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan='12' style='text-align: center; padding: 2rem;'>
-                                <p style='color: var(--gray-500); font-size: 1.1rem;'>
-                                    <?php if (!empty($filtertext)): ?>
-                                        No properties found matching "<strong><?php echo htmlspecialchars($filtertext); ?></strong>"
-                                    <?php else: ?>
-                                        No properties found in the system.
-                                    <?php endif; ?>
-                                </p>
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-        <?php if ($total_pages > 1): ?>
-        <div class="pagination">
-            <?php
-            // Previous button
-            if ($page > 1):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $page - 1; ?>' class="nav-btn">
-                    &lt;
-                </a>
-            <?php endif; ?>
-            
-            <?php
-            // Calculate page range (show max 10 pages)
-            $max_pages = 10;
-            $start_page = max(1, $page - floor($max_pages / 2));
-            $end_page = min($total_pages, $start_page + $max_pages - 1);
-            
-            // Adjust start page if we're near the end
-            if ($end_page - $start_page < $max_pages - 1) {
-                $start_page = max(1, $end_page - $max_pages + 1);
-            }
-            
-            // Show first page if not in range
-            if ($start_page > 1):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=1' 
-                   class='<?php if (1==$page) echo "curPage"; ?>'>
-                    1
-                </a>
-                <?php if ($start_page > 2): ?>
-                    <span class="pagination-dots">...</span>
-                <?php endif; ?>
-            <?php endif; ?>
-            
-            <?php
-            // Show page range
-            for ($i=$start_page; $i<=$end_page; $i++):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $i; ?>' 
-                   class='<?php if ($i==$page) echo "curPage"; ?>'>
-                    <?php echo $i; ?>
-                </a>
-            <?php endfor; ?>
-            
-            <?php
-            // Show last page if not in range
-            if ($end_page < $total_pages):
-                if ($end_page < $total_pages - 1):
-            ?>
-                    <span class="pagination-dots">...</span>
-                <?php endif; ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $total_pages; ?>' 
-                   class='<?php if ($total_pages==$page) echo "curPage"; ?>'>
-                    <?php echo $total_pages; ?>
-                </a>
-            <?php endif; ?>
-            
-            <?php
-            // Next button
-            if ($page < $total_pages):
-            ?>
-                <a href='index.php?filtertext=<?php echo urlencode($filtertext); ?>&page=<?php echo $page + 1; ?>' class="nav-btn">
-                    &gt;
-                </a>
-            <?php endif; ?>
-       
-        </div>
-        <?php endif; ?>
-    </div>
-
-    <footer style="text-align: center; padding: 2rem; color: var(--gray-500); margin-top: 3rem;">
-        <p>&copy; <?php echo date('Y'); ?> PAMPANGA STATE AGRICULTURAL UNIVERSITY - Property Management System</p>
-    </footer>
+    restorePage();
+</script>
 </body>
 </html>
+

@@ -22,7 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             password VARCHAR(255) NOT NULL,
             full_name VARCHAR(100) NOT NULL,
             email VARCHAR(100) NOT NULL,
-            office VARCHAR(100) DEFAULT NULL,
+            department VARCHAR(255) DEFAULT NULL,
             members VARCHAR(100) DEFAULT NULL,
             role VARCHAR(50) NOT NULL DEFAULT 'user',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -35,7 +35,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($admin_result->num_rows === 0) {
             // Create admin user with password admin123
             $admin_password = password_hash('admin123', PASSWORD_DEFAULT);
-            $create_admin = "INSERT INTO property_users (username, password, full_name, email, office, members, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            $create_admin = "INSERT INTO property_users (username, password, full_name, email, department, members, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
             $stmt = $conn->prepare($create_admin);
             $stmt->bind_param("sssssss", $admin_username, $admin_password, $admin_fullname, $admin_email, $admin_office, $admin_members, $admin_role);
             
@@ -51,7 +51,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
         
         // Authenticate user
-        $sql = "SELECT id, username, password, full_name, office, members, role FROM property_users WHERE username = ?";
+        $sql = "SELECT id, username, password, full_name, department, members, role FROM property_users WHERE username = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("s", $form_username);
         $stmt->execute();
@@ -65,7 +65,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['property_username'] = $user['username'];
                 $_SESSION['property_user_id'] = $user['id'];
                 $_SESSION['property_full_name'] = $user['full_name'];
-                $_SESSION['property_office'] = $user['office'];
+                $_SESSION['property_office'] = $user['department'];
                 $_SESSION['property_members'] = $user['members'];
                 $_SESSION['property_role'] = $user['role'];
                 $_SESSION['property_dbname'] = $dbname;

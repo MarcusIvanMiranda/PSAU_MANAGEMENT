@@ -305,15 +305,10 @@ if (!empty($property_tag)) {
                 <div style="text-align: right; margin-bottom: 0.5rem;">
                     <span class="user-info">Welcome, <?php echo htmlspecialchars($_SESSION['property_full_name']); ?></span>
                     <?php if (!empty($_SESSION['property_office'])): ?>
-                        <div class="user-role">
-                            🏢 <?php echo htmlspecialchars($_SESSION['property_office']); ?>
-                            <?php if (!empty($_SESSION['property_members'])): ?>
-                                | 👑 <?php echo htmlspecialchars($_SESSION['property_members']); ?>
-                            <?php endif; ?>
-                        </div>
+        
                     <?php endif; ?>
                 </div>
-                <a href="index.php" class="btn btn-secondary">← Back to Properties</a>
+                <a href="#" onclick="parent.loadPage('property_list.php', this)" class="btn btn-secondary">← Back to Properties</a>
             </div>
         </div>
     </header>
@@ -418,7 +413,7 @@ if (!empty($property_tag)) {
                         🖨️ Print QR Code
                     </button>
                 </form>
-                <a href="index.php" class="btn btn-primary">← Back to Property List</a>
+                <a href="#" onclick="parent.loadPage('property_list.php', this)" class="btn btn-primary">← Back to Property List</a>
             </div>
 
             <input type="hidden" id="qr" value="<?php echo "http://campus.psau.edu.ph/property/propertydocument.php?filtertext=" . urlencode($property_data['property_tag']); ?>">
@@ -429,7 +424,7 @@ if (!empty($property_tag)) {
                 <p>No property found with tag: <strong><?php echo htmlspecialchars($property_tag); ?></strong></p>
                 <p>Please check the property tag and try again.</p>
                 <div style="margin-top: 2rem;">
-                    <a href="index.php" class="btn btn-primary">← Back to Property List</a>
+                    <a href="#" onclick="parent.loadPage('property_list.php', this)" class="btn btn-primary">← Back to Property List</a>
                 </div>
             </div>
         <?php endif; ?>
