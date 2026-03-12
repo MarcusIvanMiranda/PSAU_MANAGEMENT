@@ -100,17 +100,24 @@ $transfers_sql = "SELECT pt.*, pl.property_item, pl.property_description
     LIMIT 50";
 $transfers_result = $conn->query($transfers_sql);
 
-// Fetch all properties for dropdown
-$properties_sql = "SELECT idproperty_list, property_no, property_tag, property_item, 
-    property_accountable_person, property_actual_location 
-    FROM property_list 
-    ORDER BY property_no DESC 
-    LIMIT 1000";
-$properties_result = $conn->query($properties_sql);
-
 // Fetch users for accountable person dropdown
 $users_sql = "SELECT DISTINCT full_name, members FROM property_users WHERE full_name IS NOT NULL AND full_name != '' ORDER BY full_name";
 $users_result = $conn->query($users_sql);
+
+// Check if property_id is provided
+if (!isset($_GET['property_id']) || !is_numeric($_GET['property_id'])) {
+    header("location: property_list.php");
+    exit;
+}
+
+$prop_id = (int)$_GET['property_id'];
+$prop_sql = "SELECT * FROM property_list WHERE idproperty_list = $prop_id";
+$prop_result = $conn->query($prop_sql);
+if (!$prop_result || $prop_result->num_rows == 0) {
+    header("location: property_list.php");
+    exit;
+}
+$property_data = $prop_result->fetch_assoc();
 
 if (isset($_GET['success']) && $_GET['success'] == '1') {
     $success_message = "Property transferred successfully!";
@@ -514,54 +521,37 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
                 <form method="POST" action="" id="transferForm">
                     <input type="hidden" name="transfer_property" value="1">
                     
-                    <!-- Property Selection -->
-                    <div class="form-section-label">Select Property</div>
-                    <div class="form-group">
-                        <label>Property <span class="req">*</span></label>
-                        <select name="property_id" id="propertySelect" required onchange="loadPropertyDetails()">
-                            <option value="">-- Select a property --</option>
-                            <?php while($prop = $properties_result->fetch_assoc()): ?>
-                                <option value="<?php echo $prop['idproperty_list']; ?>" 
-                                    data-tag="<?php echo htmlspecialchars($prop['property_tag']); ?>"
-                                    data-no="<?php echo htmlspecialchars($prop['property_no']); ?>"
-                                    data-owner="<?php echo htmlspecialchars($prop['property_accountable_person']); ?>"
-                                    data-location="<?php echo htmlspecialchars($prop['property_actual_location']); ?>"
-                                    data-item="<?php echo htmlspecialchars($prop['property_item']); ?>"
-                                    <?php echo ($property_data && $property_data['idproperty_list'] == $prop['idproperty_list']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($prop['property_no'] . ' - ' . $prop['property_tag'] . ' (' . $prop['property_item'] . ')'); ?>
-                                </option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
+                    <input type="hidden" name="property_id" id="propertyIdInput" value="<?php echo $property_data ? htmlspecialchars($property_data['idproperty_list']) : ''; ?>">
+                    <input type="hidden" name="property_tag" id="propertyTagInput" value="<?php echo $property_data ? htmlspecialchars($property_data['property_tag']) : ''; ?>">
+                    <input type="hidden" name="property_no" id="propertyNoInput" value="<?php echo $property_data ? htmlspecialchars($property_data['property_no']) : ''; ?>">
 
-                    <input type="hidden" name="property_tag" id="propertyTagInput">
-                    <input type="hidden" name="property_no" id="propertyNoInput">
-
-                    <!-- Current Info Display -->
-                    <div id="currentInfoSection" style="display: <?php echo $property_data ? 'block' : 'none'; ?>;">
-                        <div class="current-info">
-                            <div class="current-info-title">📦 Current Property Details</div>
-                            <div class="info-row">
-                                <span class="info-label">Property Tag:</span>
-                                <span class="info-value" id="displayTag"><?php echo $property_data ? htmlspecialchars($property_data['property_tag']) : ''; ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Item:</span>
-                                <span class="info-value" id="displayItem"><?php echo $property_data ? htmlspecialchars($property_data['property_item']) : ''; ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Current Owner:</span>
-                                <span class="info-value" id="displayOwner"><?php echo $property_data ? htmlspecialchars($property_data['property_accountable_person']) : ''; ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Current Location:</span>
-                                <span class="info-value" id="displayLocation"><?php echo $property_data ? htmlspecialchars($property_data['property_actual_location']) : ''; ?></span>
-                            </div>
+                    <!-- Current Property Info Display -->
+                    <div class="current-info">
+                        <div class="current-info-title">📦 Property to Transfer</div>
+                        <div class="info-row">
+                            <span class="info-label">Property Tag:</span>
+                            <span class="info-value"><?php echo htmlspecialchars($property_data['property_tag']); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Property No:</span>
+                            <span class="info-value"><?php echo htmlspecialchars($property_data['property_no']); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Item:</span>
+                            <span class="info-value"><?php echo htmlspecialchars($property_data['property_item']); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Current Owner:</span>
+                            <span class="info-value"><?php echo htmlspecialchars($property_data['property_accountable_person']); ?></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Current Location:</span>
+                            <span class="info-value"><?php echo htmlspecialchars($property_data['property_actual_location']); ?></span>
                         </div>
                     </div>
 
-                    <input type="hidden" name="previous_owner" id="previousOwnerInput" value="<?php echo $property_data ? htmlspecialchars($property_data['property_accountable_person']) : ''; ?>">
-                    <input type="hidden" name="previous_location" id="previousLocationInput" value="<?php echo $property_data ? htmlspecialchars($property_data['property_actual_location']) : ''; ?>">
+                    <input type="hidden" name="previous_owner" value="<?php echo htmlspecialchars($property_data['property_accountable_person']); ?>">
+                    <input type="hidden" name="previous_location" value="<?php echo htmlspecialchars($property_data['property_actual_location']); ?>">
 
                     <!-- Transfer Details -->
                     <div class="form-section-label">Transfer Details</div>
@@ -586,7 +576,7 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
                     <div class="form-row">
                         <div class="form-group">
                             <label>New Accountable Person <span class="req">*</span></label>
-                            <select name="new_owner" id="newOwnerSelect" required>
+                            <select name="new_owner" required>
                                 <option value="">-- Select new owner --</option>
                                 <?php 
                                 if ($users_result) {
@@ -607,7 +597,7 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
                         </div>
                         <div class="form-group">
                             <label>New Location <span class="req">*</span></label>
-                            <input type="text" name="new_location" id="newLocationInput" placeholder="Enter new location/office" required>
+                            <input type="text" name="new_location" id="newLocationInput" placeholder="Enter new location/office" value="<?php echo htmlspecialchars($property_data['property_actual_location']); ?>" required>
                         </div>
                     </div>
 
@@ -634,7 +624,7 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
 
                     <div class="btn-group">
                         <button type="submit" class="btn btn-primary">🔄 Confirm Transfer</button>
-                        <button type="reset" class="btn btn-secondary" onclick="clearForm()">Clear</button>
+                        <a href="property_list.php" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>
             </div>
@@ -695,47 +685,11 @@ if (isset($_GET['success']) && $_GET['success'] == '1') {
     </div>
 
     <script>
-        function loadPropertyDetails() {
-            const select = document.getElementById('propertySelect');
-            const option = select.options[select.selectedIndex];
-            
-            if (select.value) {
-                const tag = option.getAttribute('data-tag');
-                const no = option.getAttribute('data-no');
-                const owner = option.getAttribute('data-owner');
-                const location = option.getAttribute('data-location');
-                const item = option.getAttribute('data-item');
-                
-                document.getElementById('propertyTagInput').value = tag;
-                document.getElementById('propertyNoInput').value = no;
-                document.getElementById('previousOwnerInput').value = owner;
-                document.getElementById('previousLocationInput').value = location;
-                
-                document.getElementById('displayTag').textContent = tag || 'N/A';
-                document.getElementById('displayItem').textContent = item || 'N/A';
-                document.getElementById('displayOwner').textContent = owner || 'Unassigned';
-                document.getElementById('displayLocation').textContent = location || 'Not specified';
-                
-                document.getElementById('currentInfoSection').style.display = 'block';
-                
-                // Pre-fill new location with current location as default
-                if (!document.getElementById('newLocationInput').value) {
-                    document.getElementById('newLocationInput').value = location || '';
-                }
-            } else {
-                document.getElementById('currentInfoSection').style.display = 'none';
-            }
-        }
-
-        function clearForm() {
-            document.getElementById('currentInfoSection').style.display = 'none';
-        }
-
-        // Load details on page load if property is pre-selected
+        // Pre-fill new location with current location as default on page load
         window.onload = function() {
-            const select = document.getElementById('propertySelect');
-            if (select.value) {
-                loadPropertyDetails();
+            var locationInput = document.getElementById('newLocationInput');
+            if (!locationInput.value) {
+                locationInput.value = "<?php echo htmlspecialchars($property_data['property_actual_location']); ?>";
             }
         };
     </script>

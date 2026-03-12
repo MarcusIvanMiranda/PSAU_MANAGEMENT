@@ -225,6 +225,8 @@
         <h1 class="head-title">Register New<br>Document</h1>
         <p class="head-sub">Pampanga State Agricultural University</p>
 
+        <!-- Serial display hidden from UI but required by JS -->
+        <span id="serialDisplay" style="display:none;"></span>
     </div>
 
     <form id="documentForm" action="savedocument.php" method="post">
@@ -318,7 +320,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         const serial = generateSerial();
         document.getElementById('RandomSerial').value = serial;
-        document.getElementById('serialDisplay').textContent = serial;
+        document.getElementById('serialDisplay').textContent = serial; // ✅ now works
     });
 
     document.getElementById('documentForm').addEventListener('submit', function (e) {
@@ -330,7 +332,7 @@
         if (!title || !type || !emp) { alert('Please fill in all required fields.'); return; }
         const serial = generateSerial();
         document.getElementById('RandomSerial').value = serial;
-        document.getElementById('serialDisplay').textContent = serial;
+        document.getElementById('serialDisplay').textContent = serial; // ✅ now works
         btn.disabled = true;
         btn.innerHTML = `<svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m0 14v1m8-8h-1M5 12H4m13.657-6.343l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707"/></svg> Registering…`;
         this.submit();

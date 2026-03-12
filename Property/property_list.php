@@ -805,7 +805,9 @@ $total_pages = ceil($row["total"] / $results_per_page);
                                     <form action="propertydocument.php" method="GET" style="display:inline;">
                                         <button type="submit" name="filtertext" value="<?php echo $row['property_tag']; ?>" class="btn-view">View</button>
                                     </form>
+                                    <?php if (isset($_SESSION['property_role']) && $_SESSION['property_role'] === 'admin'): ?>
                                     <a href="transfer_property.php?property_id=<?php echo urlencode($row['idproperty_list']); ?>" class="btn-transfer">Transfer</a>
+                                    <?php endif; ?>
                                     <a href="maintenance_costs.php?property_tag=<?php echo urlencode($row['property_tag']); ?>" class="btn-maintenance">Repair</a>
                                 </div>
                             </td>
