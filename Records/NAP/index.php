@@ -12,6 +12,18 @@ if ($column_check->num_rows == 0) {
     $conn->query("ALTER TABLE nap_headers ADD COLUMN assisted_by VARCHAR(255) DEFAULT NULL AFTER date_prepared");
 }
 
+// Check and add prepared_by column if it doesn't exist
+$column_check2 = $conn->query("SHOW COLUMNS FROM nap_headers LIKE 'prepared_by'");
+if ($column_check2->num_rows == 0) {
+    $conn->query("ALTER TABLE nap_headers ADD COLUMN prepared_by VARCHAR(255) DEFAULT NULL AFTER assisted_by");
+}
+
+// Check and add approved_by column if it doesn't exist
+$column_check3 = $conn->query("SHOW COLUMNS FROM nap_headers LIKE 'approved_by'");
+if ($column_check3->num_rows == 0) {
+    $conn->query("ALTER TABLE nap_headers ADD COLUMN approved_by VARCHAR(255) DEFAULT NULL AFTER prepared_by");
+}
+
 session_start();
 
 $success_message = '';
@@ -48,15 +60,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_header'])) {
     $person_incharge     = trim($_POST['person_incharge'] ?? '');
     $date_prepared       = trim($_POST['date_prepared'] ?? '');
     $assisted_by         = trim($_POST['assisted_by'] ?? '');
+    $prepared_by         = trim($_POST['prepared_by'] ?? '');
+    $approved_by         = trim($_POST['approved_by'] ?? '');
 
     if ($name_of_office && $department_division && $section_unit && $address && $person_incharge && $date_prepared) {
-        $stmt = $conn->prepare("INSERT INTO nap_headers (name_of_office, department_division, section_unit, telephone_no, email_address, address, person_incharge, date_prepared, assisted_by) VALUES (?,?,?,?,?,?,?,?,?)");
-        $stmt->bind_param("sssssssss", $name_of_office, $department_division, $section_unit, $telephone_no, $email_address, $address, $person_incharge, $date_prepared, $assisted_by);
+        $stmt = $conn->prepare("INSERT INTO nap_headers (name_of_office, department_division, section_unit, telephone_no, email_address, address, person_incharge, date_prepared, assisted_by, prepared_by, approved_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+        $stmt->bind_param("sssssssssss", $name_of_office, $department_division, $section_unit, $telephone_no, $email_address, $address, $person_incharge, $date_prepared, $assisted_by, $prepared_by, $approved_by);
         if ($stmt->execute()) {
             $_SESSION['active_header_id'] = $stmt->insert_id;
             $success_message = "Header saved! Now add record rows below.";
         } else {
             $error_message = "Error saving header: " . $stmt->error;
+        }
+        $stmt->close();
+    } else {
+        $error_message = "Please fill all required header fields.";
+    }
+}
+
+// Handle header update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_header'])) {
+    $update_id = (int)$_POST['header_id'];
+    $name_of_office      = trim($_POST['name_of_office'] ?? '');
+    $department_division = trim($_POST['department_division'] ?? '');
+    $section_unit        = trim($_POST['section_unit'] ?? '');
+    $telephone_no        = trim($_POST['telephone_no'] ?? '');
+    $email_address       = trim($_POST['email_address'] ?? '');
+    $address             = trim($_POST['address'] ?? '');
+    $person_incharge     = trim($_POST['person_incharge'] ?? '');
+    $date_prepared       = trim($_POST['date_prepared'] ?? '');
+    $assisted_by         = trim($_POST['assisted_by'] ?? '');
+    $prepared_by         = trim($_POST['prepared_by'] ?? '');
+    $approved_by         = trim($_POST['approved_by'] ?? '');
+
+    if ($name_of_office && $department_division && $section_unit && $address && $person_incharge && $date_prepared) {
+        $stmt = $conn->prepare("UPDATE nap_headers SET name_of_office=?, department_division=?, section_unit=?, telephone_no=?, email_address=?, address=?, person_incharge=?, date_prepared=?, assisted_by=?, prepared_by=?, approved_by=? WHERE id=?");
+        $stmt->bind_param("sssssssssssi", $name_of_office, $department_division, $section_unit, $telephone_no, $email_address, $address, $person_incharge, $date_prepared, $assisted_by, $prepared_by, $approved_by, $update_id);
+        if ($stmt->execute()) {
+            $success_message = "Header updated successfully!";
+        } else {
+            $error_message = "Error updating header: " . $stmt->error;
         }
         $stmt->close();
     } else {
@@ -228,14 +271,37 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
 .hc-name { font-size: 11px; font-weight: 700; color: var(--green-dark); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hc-dept { font-size: 11px; color: var(--gray-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hc-unit { font-size: 10px; color: var(--gray-400); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hc-foot { display: flex; align-items: center; gap: 5px; margin-top: 8px; }
+.hc-foot { 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    margin-top: 8px;
+    width: 100%;
+}
 .badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
 .bg-green { background: var(--green-light); color: var(--green-dark); border: 1px solid var(--green-border); }
 .bg-gray  { background: var(--gray-100);   color: var(--gray-500);  border: 1px solid var(--gray-200); }
-.hc-acts { display: flex; gap: 4px; margin-left: auto; }
-.hc-acts a { font-size: 10px; padding: 2px 7px; border-radius: 4px; text-decoration: none; font-weight: 500; transition: all 0.12s; }
+.hc-acts { 
+    display: flex; 
+    gap: 4px; 
+    justify-content: space-between;
+    margin-top: 8px;
+    width: 100%;
+}
+.hc-acts a { 
+    font-size: 10px; 
+    padding: 2px 7px; 
+    border-radius: 4px; 
+    text-decoration: none; 
+    font-weight: 500; 
+    transition: all 0.12s;
+    flex: 1;
+    text-align: center;
+}
 .act-view { background: var(--green-light); color: var(--green-dark); border: 1px solid var(--green-border); }
 .act-view:hover { background: var(--green-main); color: #fff; border-color: var(--green-main); }
+.act-edit { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.act-edit:hover { background: #2563eb; color: #fff; border-color: #2563eb; }
 .act-del  { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
 .act-del:hover  { background: var(--red); color: #fff; border-color: var(--red); }
 
@@ -288,7 +354,8 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
     transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
 }
 .fg input:focus, .fg select:focus { outline: none; border-color: var(--green-main); box-shadow: 0 0 0 3px rgba(30,122,71,0.09); }
-.fg input[readonly] { background: var(--gray-50); color: var(--gray-400); cursor: default; }
+.fg input::placeholder { color: var(--gray-400); opacity: 0.7; }
+.fg input:focus::placeholder { opacity: 0.4; }
 
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -375,7 +442,7 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
 .modal-wrap.open { display: flex; }
 .modal {
     background: var(--white); border-radius: var(--radius-lg);
-    width: 680px; max-width: 96vw; max-height: 92vh; overflow-y: auto;
+    width: 900px; max-width: 96vw; max-height: 92vh; overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0,0,0,0.2);
     animation: up 0.2s ease;
 }
@@ -419,11 +486,12 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
                 <div class="hc-foot">
                     <span class="badge bg-green"><?= $h['record_count'] ?> row<?= $h['record_count'] != 1 ? 's' : '' ?></span>
                     <span class="badge bg-gray"><?= $h['date_prepared'] ?></span>
-                    <div class="hc-acts" onclick="event.stopPropagation()">
-                        <a href="records_table.php?header_id=<?= $h['id'] ?>" class="act-view" target="_blank">View</a>
-                        <a href="?delete_header=<?= $h['id'] ?>" class="act-del"
-                           onclick="return confirm('Delete header and ALL its records?')">Del</a>
-                    </div>
+                </div>
+                <div class="hc-acts" onclick="event.stopPropagation()">
+                    <a href="records_table.php?header_id=<?= $h['id'] ?>" class="act-view" target="_blank">View</a>
+                    <a href="#" class="act-edit" onclick="openEditModal(<?= $h['id'] ?>); return false;">Edit</a>
+                    <a href="?delete_header=<?= $h['id'] ?>" class="act-del"
+                       onclick="return confirm('Delete header and ALL its records?')">Del</a>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -446,14 +514,17 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
         <div class="active-banner">
             <div class="ab-label"><span style="color:var(--green-main)">✓</span> Active Header — records below belong to this group</div>
             <div class="ab-grid">
-                <div class="ab-item"><div class="lbl">1. Name of Office</div><div class="val"><?= htmlspecialchars($active_header['name_of_office']) ?></div></div>
-                <div class="ab-item"><div class="lbl">2. Dept / Division</div><div class="val"><?= htmlspecialchars($active_header['department_division']) ?></div></div>
-                <div class="ab-item"><div class="lbl">3. Section / Unit</div><div class="val"><?= htmlspecialchars($active_header['section_unit']) ?></div></div>
-                <div class="ab-item"><div class="lbl">4. Telephone</div><div class="val"><?= htmlspecialchars($active_header['telephone_no'] ?: '—') ?></div></div>
-                <div class="ab-item"><div class="lbl">5. Email</div><div class="val"><?= htmlspecialchars($active_header['email_address'] ?: '—') ?></div></div>
-                <div class="ab-item"><div class="lbl">6. Address</div><div class="val"><?= htmlspecialchars($active_header['address']) ?></div></div>
-                <div class="ab-item"><div class="lbl">7. Person-in-Charge</div><div class="val"><?= htmlspecialchars($active_header['person_incharge']) ?></div></div>
-                <div class="ab-item"><div class="lbl">8. Date Prepared</div><div class="val"><?= htmlspecialchars($active_header['date_prepared']) ?></div></div>
+                <div class="ab-item"><div class="lbl">Name of Office</div><div class="val"><?= htmlspecialchars($active_header['name_of_office']) ?></div></div>
+                <div class="ab-item"><div class="lbl">Dept / Division</div><div class="val"><?= htmlspecialchars($active_header['department_division']) ?></div></div>
+                <div class="ab-item"><div class="lbl">Section / Unit</div><div class="val"><?= htmlspecialchars($active_header['section_unit']) ?></div></div>
+                <div class="ab-item"><div class="lbl">Telephone</div><div class="val"><?= htmlspecialchars($active_header['telephone_no'] ?: '—') ?></div></div>
+                <div class="ab-item"><div class="lbl">Email</div><div class="val"><?= htmlspecialchars($active_header['email_address'] ?: '—') ?></div></div>
+                <div class="ab-item"><div class="lbl">Address</div><div class="val"><?= htmlspecialchars($active_header['address']) ?></div></div>
+                <div class="ab-item"><div class="lbl">Person-in-Charge</div><div class="val"><?= htmlspecialchars($active_header['person_incharge']) ?></div></div>
+                <div class="ab-item"><div class="lbl">Date Prepared</div><div class="val"><?= htmlspecialchars($active_header['date_prepared']) ?></div></div>
+                <div class="ab-item"><div class="lbl">Prepared By</div><div class="val"><?= htmlspecialchars($active_header['prepared_by'] ?: '—') ?></div></div>
+                <div class="ab-item"><div class="lbl">Assisted By</div><div class="val"><?= htmlspecialchars($active_header['assisted_by'] ?: '—') ?></div></div>
+                <div class="ab-item"><div class="lbl">Approved By</div><div class="val"><?= htmlspecialchars($active_header['approved_by'] ?: '—') ?></div></div>
             </div>
         </div>
 
@@ -530,9 +601,9 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
                     <div class="divider"></div>
                     <div class="fsec-label">Retention Period &amp; Disposition</div>
                     <div class="grid4">
-                        <div class="fg"><label>19a. Active (yrs) <span class="req">*</span></label>
+                        <div class="fg"><label>19a. Active <span class="req">*</span></label>
                             <input type="number" name="retention_period_active" id="rec_a" placeholder="0" onchange="calcT()" required></div>
-                        <div class="fg"><label>19b. Storage (yrs)</label>
+                        <div class="fg"><label>19b. Storage</label>
                             <input type="number" name="retention_period_storage" id="rec_s" placeholder="0" onchange="calcT()"></div>
                         <div class="fg"><label>19c. Total (auto)</label>
                             <input type="number" name="retention_period_total" id="rec_t" readonly placeholder="—"></div>
@@ -645,10 +716,10 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
                         </select></div>
                     <div class="fg s2"><label>3. Section / Unit <span class="req">*</span></label>
                         <select name="section_unit" id="msec" required>
-                            <option value="">— Select Department First —</option>
+                            <option value="">— Select Section —</option>
                         </select></div>
                     <div class="fg s2"><label>4. Telephone No.</label>
-                        <input type="text" name="telephone_no" placeholder="045-XXX-XXXX"></div>
+                        <input type="tel" name="telephone_no" placeholder="0917 123 4567 or (02) 8123 4567" pattern="[0-9\-\+\(\)\s]{7,20}"></div>
                     <div class="fg s2"><label>5. Email Address</label>
                         <input type="text" name="email_address" placeholder="office@psau.edu.ph"></div>
                     <div class="fg sf"><label>6. Address <span class="req">*</span></label>
@@ -659,8 +730,14 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
                         <input type="text" name="person_incharge" value="<?= htmlspecialchars($current_user_full_name) ?>" readonly></div>
                     <div class="fg s2"><label>8. Date Prepared <span class="req">*</span></label>
                         <input type="text" name="date_prepared" value="<?= $current_date ?>" readonly></div>
-                    <div class="fg s2"><label>9. Assisted By</label>
+                </div>
+                <div class="grid3" style="margin-bottom:14px;">
+                    <div class="fg"><label>Prepared By</label>
+                        <input type="text" name="prepared_by" placeholder="Enter preparer name"></div>
+                    <div class="fg"><label>Assisted By</label>
                         <input type="text" name="assisted_by" placeholder="Enter assistant name"></div>
+                    <div class="fg"><label>Approved By</label>
+                        <input type="text" name="approved_by" placeholder="Enter approver name"></div>
                 </div>
                 <div class="modal-ft" style="padding:0; margin-top:6px; border:none; display:flex; gap:10px;">
                     <button type="submit" name="save_header" class="btn-primary">💾 Save Header</button>
@@ -671,8 +748,98 @@ body { font-family: 'Inter', sans-serif; background: var(--gray-100); color: var
     </div>
 </div>
 
+<!-- ══ MODAL: EDIT HEADER ══ -->
+<div class="modal-wrap" id="mEdit" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="modal">
+        <div class="modal-top">
+            <h3>Edit Header</h3>
+            <button class="modal-x" onclick="document.getElementById('mEdit').classList.remove('open')">×</button>
+        </div>
+        <div class="modal-bd">
+            <form method="POST">
+                <input type="hidden" name="header_id" id="edit_header_id">
+                <div class="fsec-label">Office Information</div>
+                <div class="grid4" style="margin-bottom:14px;">
+                    <div class="fg sf"><label>1. Name of Office <span class="req">*</span></label>
+                        <select name="name_of_office" required>
+                            <option value="Pampanga State Agricultural University" selected>Pampanga State Agricultural University</option>
+                        </select></div>
+                    <div class="fg s2"><label>2. Department / Division <span class="req">*</span></label>
+                        <select name="department_division" id="edept" required onchange="syncSecEdit(this)">
+                            <option value="">— Select Department —</option>
+                            <?php foreach ($offices as $o): ?>
+                                <option value="<?= htmlspecialchars($o['office_name']) ?>" data-oid="<?= $o['id'] ?>">
+                                    <?= htmlspecialchars($o['office_name']) ?></option>
+                            <?php endforeach; ?>
+                        </select></div>
+                    <div class="fg s2"><label>3. Section / Unit <span class="req">*</span></label>
+                        <select name="section_unit" id="esec" required>
+                            <option value="">— Select Section —</option>
+                        </select></div>
+                    <div class="fg s2"><label>4. Telephone No.</label>
+                        <input type="tel" name="telephone_no" id="etel" placeholder="0917 123 4567 or (02) 8123 4567" pattern="[0-9\-\+\(\)\s]{7,20}"></div>
+                    <div class="fg s2"><label>5. Email Address</label>
+                        <input type="text" name="email_address" id="eemail" placeholder="office@psau.edu.ph"></div>
+                    <div class="fg sf"><label>6. Address <span class="req">*</span></label>
+                        <select name="address" required>
+                            <option value="Magalang Pampanga" selected>Magalang Pampanga</option>
+                        </select></div>
+                    <div class="fg s2"><label>7. Person-in-Charge <span class="req">*</span></label>
+                        <input type="text" name="person_incharge" id="eperson" required></div>
+                    <div class="fg s2"><label>8. Date Prepared <span class="req">*</span></label>
+                        <input type="text" name="date_prepared" id="edate" required></div>
+                </div>
+                <div class="grid3" style="margin-bottom:14px;">
+                    <div class="fg"><label>Prepared By</label>
+                        <input type="text" name="prepared_by" id="eprepared" placeholder="Enter preparer name"></div>
+                    <div class="fg"><label>Assisted By</label>
+                        <input type="text" name="assisted_by" id="eassisted" placeholder="Enter assistant name"></div>
+                    <div class="fg"><label>Approved By</label>
+                        <input type="text" name="approved_by" id="eapproved" placeholder="Enter approver name"></div>
+                </div>
+                <div class="modal-ft" style="padding:0; margin-top:6px; border:none; display:flex; gap:10px;">
+                    <button type="submit" name="update_header" class="btn-primary">💾 Save Changes</button>
+                    <button type="button" class="btn-ghost" onclick="document.getElementById('mEdit').classList.remove('open')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 const subData = <?= json_encode($sub_offices) ?>;
+const headerData = <?= json_encode($all_headers) ?>;
+
+function openEditModal(headerId) {
+    const h = headerData.find(x => x.id == headerId);
+    if (!h) return;
+    document.getElementById('edit_header_id').value = h.id;
+    document.getElementById('edept').value = h.department_division;
+    document.getElementById('esec').innerHTML = '<option value="' + h.section_unit + '" selected>' + h.section_unit + '</option>';
+    document.getElementById('etel').value = h.telephone_no || '';
+    document.getElementById('eemail').value = h.email_address || '';
+    document.getElementById('eperson').value = h.person_incharge;
+    document.getElementById('edate').value = h.date_prepared;
+    document.getElementById('eprepared').value = h.prepared_by || '';
+    document.getElementById('eassisted').value = h.assisted_by || '';
+    document.getElementById('eapproved').value = h.approved_by || '';
+    document.getElementById('mEdit').classList.add('open');
+}
+
+function syncSecEdit(dept) {
+    const sec = document.getElementById('esec');
+    const oid = dept.options[dept.selectedIndex]?.getAttribute('data-oid');
+    const currentSec = sec.value;
+    sec.innerHTML = '<option value="">— Select Section —</option>';
+    if (oid && subData[oid]) {
+        subData[oid].forEach(s => {
+            const o = document.createElement('option');
+            o.value = s; o.textContent = s;
+            if (s === currentSec) o.selected = true;
+            sec.appendChild(o);
+        });
+    }
+}
 
 function syncSec(dept, targetId) {
     const sec = document.getElementById(targetId);
@@ -710,6 +877,9 @@ function handleTV(sel) {
 
 <?php if ($error_message && isset($_POST['save_header'])): ?>
 document.getElementById('mNew').classList.add('open');
+<?php endif; ?>
+<?php if ($error_message && isset($_POST['update_header'])): ?>
+document.getElementById('mEdit').classList.add('open');
 <?php endif; ?>
 </script>
 </body>

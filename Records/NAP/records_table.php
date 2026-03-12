@@ -12,6 +12,51 @@ if ($column_check->num_rows == 0) {
     $conn->query("ALTER TABLE nap_headers ADD COLUMN assisted_by VARCHAR(255) DEFAULT NULL AFTER date_prepared");
 }
 
+// Check and add prepared_by column if it doesn't exist
+$column_check2 = $conn->query("SHOW COLUMNS FROM nap_headers LIKE 'prepared_by'");
+if ($column_check2->num_rows == 0) {
+    $conn->query("ALTER TABLE nap_headers ADD COLUMN prepared_by VARCHAR(255) DEFAULT NULL AFTER assisted_by");
+}
+
+// Check and add approved_by column if it doesn't exist
+$column_check3 = $conn->query("SHOW COLUMNS FROM nap_headers LIKE 'approved_by'");
+if ($column_check3->num_rows == 0) {
+    $conn->query("ALTER TABLE nap_headers ADD COLUMN approved_by VARCHAR(255) DEFAULT NULL AFTER prepared_by");
+}
+
+// Handle header update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_header'])) {
+    $update_id = (int)$_POST['header_id'];
+    $name_of_office = $conn->real_escape_string($_POST['name_of_office'] ?? '');
+    $department_division = $conn->real_escape_string($_POST['department_division'] ?? '');
+    $section_unit = $conn->real_escape_string($_POST['section_unit'] ?? '');
+    $telephone_no = $conn->real_escape_string($_POST['telephone_no'] ?? '');
+    $email_address = $conn->real_escape_string($_POST['email_address'] ?? '');
+    $address = $conn->real_escape_string($_POST['address'] ?? '');
+    $person_incharge = $conn->real_escape_string($_POST['person_incharge'] ?? '');
+    $prepared_by = $conn->real_escape_string($_POST['prepared_by'] ?? '');
+    $assisted_by = $conn->real_escape_string($_POST['assisted_by'] ?? '');
+    $approved_by = $conn->real_escape_string($_POST['approved_by'] ?? '');
+    
+    $update_sql = "UPDATE nap_headers SET 
+        name_of_office = '$name_of_office',
+        department_division = '$department_division',
+        section_unit = '$section_unit',
+        telephone_no = '$telephone_no',
+        email_address = '$email_address',
+        address = '$address',
+        person_incharge = '$person_incharge',
+        prepared_by = '$prepared_by',
+        assisted_by = '$assisted_by',
+        approved_by = '$approved_by'
+        WHERE id = $update_id";
+    
+    if ($conn->query($update_sql)) {
+        header("Location: records_table.php?header_id=$update_id&updated=1");
+        exit;
+    }
+}
+
 $header_id = isset($_GET['header_id']) ? (int)$_GET['header_id'] : 0;
 
 if ($header_id) {
@@ -249,6 +294,27 @@ window.onload = function() {
     <a href="records_table.php?header_id=<?= $header_id ?>&print=1" target="_blank" class="nav-btn green">🖨 Print / Save PDF</a>
 </div>
 
+<!-- NAV: Header Selection -->
+<div class="nav">
+    <label>Header Selection:</label>
+    <select id="headerSelect" onchange="location='records_table.php?header_id='+this.value">
+        <option value="">— Select Header —</option>
+        <?php foreach ($all_hdrs as $h): ?>
+            <option value="<?= $h['id'] ?>" <?= $h['id'] == $header_id ? 'selected' : '' ?>>
+                <?= htmlspecialchars($h['department_division']) ?> - <?= htmlspecialchars($h['section_unit']) ?> (<?= $h['date_prepared'] ?>)
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <span class="ml" style="font-size:13px; color:#6b7f8c;">
+        <?php if ($header_data): ?>
+            Viewing: <strong><?= htmlspecialchars($header_data['department_division'] ?? '') ?></strong> 
+            - <?= htmlspecialchars($header_data['section_unit'] ?? '') ?>
+        <?php else: ?>
+            No header selected
+        <?php endif; ?>
+    </span>
+</div>
+
 <?php foreach ($chunks as $page_idx => $page_records):
     $page_num   = $page_idx + 1;
     $row_count  = count($page_records);
@@ -278,7 +344,7 @@ window.onload = function() {
             <div class="f-cell no-right"><span class="lbl">5. EMAIL ADDRESS:</span><span class="val"><?= htmlspecialchars($header_data['email_address'] ?? '') ?></span></div>
             <div class="f-cell row2 no-bottom"><span class="lbl">6. ADDRESS:</span><span class="val"><?= htmlspecialchars($header_data['address'] ?? '') ?></span></div>
             <div class="f-cell no-bottom"><span class="lbl">7. PERSON-IN-CHARGE OF FILES:</span><span class="val"><?= htmlspecialchars($header_data['person_incharge'] ?? '') ?></span></div>
-            <div class="f-cell no-bottom no-right"><span class="lbl">8. DATE PREPARED:</span><span class="val"><?= htmlspecialchars($header_data['date_prepared'] ?? '') ?></span></div>
+            <div class="f-cell no-bottom no-right"><span class="lbl">8. DATE PREPARED:</span><span class="val"><?= date('m/d/Y') ?></span></div>
         </div>
     </div>
 
@@ -355,7 +421,7 @@ window.onload = function() {
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;">
             <div class="sig">
                 <div class="sh" style="margin-left:-280px;">PREPARED BY:</div>
-                <div class="sn"><?= htmlspecialchars($header_data['person_incharge'] ?? ($_SESSION['full_name'] ?? 'Administrator')) ?></div>
+                <div class="sn"><?= htmlspecialchars($header_data['prepared_by'] ?? ($_SESSION['full_name'] ?? 'Administrator')) ?></div>
                 <div class="sl"></div>
                 <div class="sp">Name and Position</div>
             </div>
@@ -367,6 +433,7 @@ window.onload = function() {
             </div>
             <div class="sig">
                 <div class="sh" style="margin-left:-280px;">APPROVED BY:</div>
+                <div class="sn"><?= htmlspecialchars($header_data['approved_by'] ?? '') ?></div>
                 <div class="sl"></div>
                 <div class="sp">Chief of the Division/Department</div>
             </div>
