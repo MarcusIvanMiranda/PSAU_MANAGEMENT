@@ -1,4 +1,10 @@
 <?php
+session_start();
+if (!isset($_SESSION['property_loggedin']) || $_SESSION['property_loggedin'] !== true) {
+    header("location: login.php");
+    exit;
+}
+
 require_once 'connect.php';
 
 // Create connection
@@ -62,174 +68,135 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New Property - PSAU Management System</title>
+    <title>Add Property - PSAU Property Management</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .form-container {
-            max-width: 800px;
-            margin: 20px auto;
+        body {
+            background: #f8f9f8;
             padding: 20px;
-            background: #f9f9f9;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .form-group {
-            margin-bottom: 15px;
+
+        .page-header {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
         }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--green-900);
+            margin-bottom: 0.5rem;
         }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
+
+        .page-subtitle {
+            color: var(--gray-600);
+            font-size: 1rem;
         }
-        .form-row {
-            display: flex;
-            gap: 15px;
-        }
-        .form-row .form-group {
-            flex: 1;
-        }
-        .btn {
-            background: #007bff;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .btn:hover {
-            background: #0056b3;
-        }
-        .success {
-            color: #28a745;
-            background: #d4edda;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-        .error {
-            color: #721c24;
-            background: #f8d7da;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-        .form-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .form-header h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .back-link {
-            display: inline-block;
-            margin-bottom: 20px;
-            color: #007bff;
-            text-decoration: none;
-        }
-        .back-link:hover {
-            text-decoration: underline;
+
+        .form-container {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            box-shadow: var(--shadow);
         }
     </style>
 </head>
 <body>
-    <div class="form-container">
-        <div class="form-header">
-            <h1>Add New Property</h1>
-            <p>Fill in the details below to add a new property to the inventory</p>
-        </div>
+    <div class="page-header">
+        <h1 class="page-title">Add New Property</h1>
+        <p class="page-subtitle">Fill in the details below to add a new property to the inventory</p>
+    </div>
 
-        <a href="index.php" class="back-link">← Back to Property List</a>
+    <div class="form-container">
 
         <?php if (isset($success_message)): ?>
-            <div class="success"><?php echo $success_message; ?></div>
+            <div class="alert alert-success" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #c3e6cb;">
+                <?php echo $success_message; ?>
+            </div>
         <?php endif; ?>
 
         <?php if (isset($error_message)): ?>
-            <div class="error"><?php echo $error_message; ?></div>
+            <div class="alert alert-error" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #f5c6cb;">
+                <?php echo $error_message; ?>
+            </div>
         <?php endif; ?>
 
         <form method="POST" action="">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_no">Property No:</label>
-                    <input type="text" id="property_no" name="property_no" required>
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_no" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property No:</label>
+                    <input type="text" id="property_no" name="property_no" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
-                <div class="form-group">
-                    <label for="property_tag">Property Tag:</label>
-                    <input type="text" id="property_tag" name="property_tag">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="property_item">Property Item:</label>
-                <input type="text" id="property_item" name="property_item" required>
-            </div>
-
-            <div class="form-group">
-                <label for="property_description">Property Description:</label>
-                <textarea id="property_description" name="property_description" rows="3"></textarea>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_model_number">Model Number:</label>
-                    <input type="text" id="property_model_number" name="property_model_number">
-                </div>
-                <div class="form-group">
-                    <label for="property_serial_number">Serial Number:</label>
-                    <input type="text" id="property_serial_number" name="property_serial_number">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_tag" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Tag:</label>
+                    <input type="text" id="property_tag" name="property_tag" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_value">Property Value:</label>
-                    <input type="text" id="property_value" name="property_value">
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label for="property_item" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Item:</label>
+                <input type="text" id="property_item" name="property_item" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label for="property_description" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Description:</label>
+                <textarea id="property_description" name="property_description" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
+            </div>
+
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_model_number" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Model Number:</label>
+                    <input type="text" id="property_model_number" name="property_model_number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
-                <div class="form-group">
-                    <label for="property_acquisition_date">Acquisition Date:</label>
-                    <input type="date" id="property_acquisition_date" name="property_acquisition_date">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_serial_number" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Serial Number:</label>
+                    <input type="text" id="property_serial_number" name="property_serial_number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_accountable_person">Accountable Person:</label>
-                    <input type="text" id="property_accountable_person" name="property_accountable_person">
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_value" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Value:</label>
+                    <input type="text" id="property_value" name="property_value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
-                <div class="form-group">
-                    <label for="property_actual_location">Actual Location:</label>
-                    <input type="text" id="property_actual_location" name="property_actual_location">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_acquisition_date" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Acquisition Date:</label>
+                    <input type="date" id="property_acquisition_date" name="property_acquisition_date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="property_remarks">Remarks:</label>
-                <textarea id="property_remarks" name="property_remarks" rows="2"></textarea>
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_accountable_person" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Accountable Person:</label>
+                    <input type="text" id="property_accountable_person" name="property_accountable_person" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_actual_location" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Actual Location:</label>
+                    <input type="text" id="property_actual_location" name="property_actual_location" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_counted">Counted:</label>
-                    <select id="property_counted" name="property_counted">
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label for="property_remarks" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Remarks:</label>
+                <textarea id="property_remarks" name="property_remarks" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical;"></textarea>
+            </div>
+
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_counted" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Counted:</label>
+                    <select id="property_counted" name="property_counted" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                         <option value="">Select...</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="property_condition">Condition:</label>
-                    <select id="property_condition" name="property_condition">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_condition" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Condition:</label>
+                    <select id="property_condition" name="property_condition" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                         <option value="">Select...</option>
                         <option value="Good">Good</option>
                         <option value="Fair">Fair</option>
@@ -239,18 +206,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_validated">Validated:</label>
-                    <select id="property_validated" name="property_validated">
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_validated" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Validated:</label>
+                    <select id="property_validated" name="property_validated" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                         <option value="">Select...</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="property_status">Status:</label>
-                    <select id="property_status" name="property_status">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_status" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Status:</label>
+                    <select id="property_status" name="property_status" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                         <option value="">Select...</option>
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
@@ -260,42 +227,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_fund">Fund:</label>
-                    <input type="text" id="property_fund" name="property_fund">
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_fund" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Fund:</label>
+                    <input type="text" id="property_fund" name="property_fund" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
-                <div class="form-group">
-                    <label for="property_year_purchased">Year Purchased:</label>
-                    <input type="text" id="property_year_purchased" name="property_year_purchased">
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_sm_group_account">SM Group Account:</label>
-                    <input type="text" id="property_sm_group_account" name="property_sm_group_account">
-                </div>
-                <div class="form-group">
-                    <label for="property_gl_account">GL Account:</label>
-                    <input type="text" id="property_gl_account" name="property_gl_account">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_year_purchased" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Year Purchased:</label>
+                    <input type="text" id="property_year_purchased" name="property_year_purchased" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="property_number">Property Number:</label>
-                    <input type="text" id="property_number" name="property_number">
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_sm_group_account" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">SM Group Account:</label>
+                    <input type="text" id="property_sm_group_account" name="property_sm_group_account" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
-                <div class="form-group">
-                    <label for="property_loc">Location:</label>
-                    <input type="text" id="property_loc" name="property_loc">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_gl_account" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">GL Account:</label>
+                    <input type="text" id="property_gl_account" name="property_gl_account" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 30px;">
-                <button type="submit" class="btn">Add Property</button>
-                <button type="reset" class="btn" style="background: #6c757d; margin-left: 10px;">Clear Form</button>
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_number" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Property Number:</label>
+                    <input type="text" id="property_number" name="property_number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="property_loc" style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Location:</label>
+                    <input type="text" id="property_loc" name="property_loc" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                </div>
+            </div>
+
+            <div style="text-align: center; padding-top: 15px; border-top: 1px solid #ddd;">
+                <button type="submit" class="btn btn-primary">Add Property</button>
+                <button type="reset" class="btn btn-secondary" style="margin-left: 10px;">Clear Form</button>
             </div>
         </form>
     </div>
